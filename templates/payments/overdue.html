@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Просроченные платежи{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Просроченные платежи</h1>
+    <p class="page-sub text-muted">Общая сумма: <strong class="text-danger">${{ total_overdue|floatformat:0|intcomma }}</strong></p>
+  </div>
+</div>
+
+{% if overdue %}
+<div class="alert alert-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>Найдено {{ overdue.count }} просроченных платежей</div>
+{% endif %}
+
+<div class="crm-card">
+  <div class="table-responsive">
+    <table class="crm-table">
+      <thead>
+        <tr><th>Клиент</th><th>Квартира</th><th>Сумма</th><th>Дата платежа</th><th>Просрочено (дней)</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for s in overdue %}
+        <tr class="table-danger">
+          <td class="fw-semibold">{{ s.sale.client.full_name }}</td>
+          <td>Кв. {{ s.sale.apartment.number }}, {{ s.sale.apartment.block.name }}</td>
+          <td class="fw-bold text-danger">${{ s.amount|floatformat:0|intcomma }}</td>
+          <td>{{ s.due_date|date:"d.m.Y" }}</td>
+          <td>
+            {% with days=s.due_date|timesince %}
+            <span class="badge bg-danger">{{ days }}</span>
+            {% endwith %}
+          </td>
+          <td>
+            <a href="{% url 'clients:client_detail' s.sale.client.pk %}" class="btn btn-sm btn-outline-secondary">Клиент</a>
+            <a href="{% url 'payments:add' %}?sale={{ s.sale.pk }}" class="btn btn-sm btn-gold">+ Платёж</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="text-center py-4 text-success"><i class="bi bi-check-circle fs-3 d-block mb-2"></i>Просроченных платежей нет!</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

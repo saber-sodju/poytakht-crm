@@ -1,0 +1,288 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Дашборд{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Дашборд</h1>
+    <p class="page-sub text-muted">{{ today|date:"d E Y г." }} — обзор состояния бизнеса</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'sales:create' %}" class="btn btn-gold"><i class="bi bi-plus-lg me-1"></i>Новая продажа</a>
+  </div>
+</div>
+
+<!-- Alert banners -->
+{% if overdue > 0 %}
+<div class="alert alert-danger d-flex align-items-center gap-2 mb-3">
+  <i class="bi bi-exclamation-triangle-fill"></i>
+  <span><strong>{{ overdue }} просроченных платежей!</strong> Клиенты не оплатили вовремя.</span>
+  <a href="{% url 'payments:overdue' %}" class="btn btn-sm btn-outline-danger ms-auto">Посмотреть</a>
+</div>
+{% endif %}
+{% if expiring_bookings > 0 %}
+<div class="alert alert-warning d-flex align-items-center gap-2 mb-3">
+  <i class="bi bi-clock"></i>
+  <span><strong>{{ expiring_bookings }} бронирований</strong> заканчиваются в ближайшие 3 дня.</span>
+  <a href="{% url 'sales:bookings' %}" class="btn btn-sm btn-outline-warning ms-auto">Посмотреть</a>
+</div>
+{% endif %}
+
+<!-- KPI cards row 1: Квартиры -->
+<div class="kpi-grid mb-4">
+  <div class="kpi-card">
+    <div class="kpi-icon bg-gold-soft"><i class="bi bi-buildings text-gold"></i></div>
+    <div class="kpi-body">
+      <div class="kpi-value">{{ apt_stats.total }}</div>
+      <div class="kpi-label">Всего квартир</div>
+    </div>
+  </div>
+  <div class="kpi-card kpi-success">
+    <div class="kpi-icon bg-success-soft"><i class="bi bi-house-check text-success"></i></div>
+    <div class="kpi-body">
+      <div class="kpi-value text-success">{{ apt_stats.free }}</div>
+      <div class="kpi-label">Свободно</div>
+    </div>
+  </div>
+  <div class="kpi-card kpi-warning">
+    <div class="kpi-icon bg-warning-soft"><i class="bi bi-clock-history text-warning"></i></div>
+    <div class="kpi-body">
+      <div class="kpi-value text-warning">{{ apt_stats.booked }}</div>
+      <div class="kpi-label">Забронировано</div>
+    </div>
+  </div>
+  <div class="kpi-card kpi-danger">
+    <div class="kpi-icon bg-danger-soft"><i class="bi bi-house-x text-danger"></i></div>
+    <div class="kpi-body">
+      <div class="kpi-value text-danger">{{ apt_stats.sold }}</div>
+      <div class="kpi-label">Продано</div>
+    </div>
+  </div>
+</div>
+
+<!-- KPI cards row 2: Финансы -->
+{% if user.can_see_finance %}
+<div class="kpi-grid mb-4">
+  <div class="kpi-card">
+    <div class="kpi-icon bg-primary-soft"><i class="bi bi-cash-coin text-primary"></i></div>
+    <div class="kpi-body">
+      <div class="kpi-value">${{ month_income|floatformat:0|intcomma }}</div>
+      <div class="kpi-label">Доход этого месяца</div>
+    </div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-icon bg-danger-soft"><i class="bi bi-receipt text-danger"></i></div>
+    <div class="kpi-body">
+      <div class="kpi-value text-danger">${{ month_expenses|floatformat:0|intcomma }}</div>
+      <div class="kpi-label">Расходы этого месяца</div>
+    </div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-icon {% if month_profit >= 0 %}bg-success-soft{% else %}bg-danger-soft{% endif %}">
+      <i class="bi bi-graph-up-arrow {% if month_profit >= 0 %}text-success{% else %}text-danger{% endif %}"></i>
+    </div>
+    <div class="kpi-body">
+      <div class="kpi-value {% if month_profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+        ${{ month_profit|floatformat:0|intcomma }}
+      </div>
+      <div class="kpi-label">Прибыль месяца</div>
+    </div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-icon bg-warning-soft"><i class="bi bi-exclamation-diamond text-warning"></i></div>
+    <div class="kpi-body">
+      <div class="kpi-value text-warning">${{ total_debt|floatformat:0|intcomma }}</div>
+      <div class="kpi-label">Общий долг клиентов ({{ clients_with_debt }} чел.)</div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Charts + Sidebar info -->
+<div class="dashboard-grid">
+  {% if user.can_see_finance %}
+  <div class="dashboard-chart-card">
+    <div class="card-header-crm">
+      <span class="card-title-crm">Доходы и расходы (6 месяцев)</span>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="incomeChart"></canvas>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="dashboard-side">
+    <!-- Quick stats -->
+    <div class="dash-info-card">
+      <div class="dash-info-title">Сегодня</div>
+      <div class="dash-info-row">
+        <span><i class="bi bi-calendar-check text-gold me-1"></i>Платежи сегодня</span>
+        <span class="badge bg-warning text-dark">{{ today_payments }}</span>
+      </div>
+      <div class="dash-info-row">
+        <span><i class="bi bi-exclamation-triangle text-danger me-1"></i>Просрочено</span>
+        <span class="badge bg-danger">{{ overdue }}</span>
+      </div>
+      <div class="dash-info-row">
+        <span><i class="bi bi-person-plus text-primary me-1"></i>Новые лиды</span>
+        <span class="badge bg-primary">{{ leads_new }}</span>
+      </div>
+      <div class="dash-info-row">
+        <span><i class="bi bi-telephone text-success me-1"></i>Перезвонить сегодня</span>
+        <span class="badge bg-success">{{ leads_callback }}</span>
+      </div>
+    </div>
+
+    <!-- Budget status by block -->
+    {% if user.can_see_finance and blocks %}
+    <div class="dash-info-card mt-3">
+      <div class="dash-info-title">Бюджеты блоков</div>
+      {% for block in blocks %}
+      {% if block.budget_planned > 0 %}
+      <div class="mb-3">
+        <div class="d-flex justify-content-between mb-1">
+          <span class="small fw-semibold">{{ block.name }}</span>
+          <span class="small {% if block.is_over_budget %}text-danger{% else %}text-muted{% endif %}">
+            ${{ block.budget_actual|floatformat:0|intcomma }} / ${{ block.budget_planned|floatformat:0|intcomma }}
+          </span>
+        </div>
+        {% with pct=block.budget_actual|default_if_none:0 %}
+        <div class="progress" style="height: 6px;">
+          <div class="progress-bar {% if block.is_over_budget %}bg-danger{% else %}bg-gold{% endif %}"
+               style="width: {% widthratio block.budget_actual block.budget_planned 100 %}%"></div>
+        </div>
+        {% endwith %}
+        {% if block.is_over_budget %}
+        <div class="text-danger small mt-1">⚠️ Превышение бюджета!</div>
+        {% endif %}
+      </div>
+      {% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Recent sales -->
+{% if recent_sales %}
+<div class="crm-card mt-4">
+  <div class="card-header-crm d-flex justify-content-between">
+    <span class="card-title-crm">Последние продажи</span>
+    <a href="{% url 'sales:list' %}" class="btn btn-sm btn-outline-gold">Все продажи</a>
+  </div>
+  <div class="table-responsive">
+    <table class="crm-table">
+      <thead>
+        <tr>
+          <th>Клиент</th>
+          <th>Квартира</th>
+          <th>Блок</th>
+          <th>Сумма</th>
+          <th>Оплачено</th>
+          <th>Дата</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for sale in recent_sales %}
+        <tr>
+          <td class="fw-semibold">{{ sale.client.full_name }}</td>
+          <td>Кв. {{ sale.apartment.number }}</td>
+          <td>{{ sale.apartment.block.name }}</td>
+          <td>${{ sale.total_price|floatformat:0|intcomma }}</td>
+          <td>
+            <div class="d-flex align-items-center gap-2">
+              <div class="progress flex-grow-1" style="height: 5px;">
+                <div class="progress-bar bg-gold" style="width: {{ sale.payment_progress }}%"></div>
+              </div>
+              <span class="small text-muted">{{ sale.payment_progress }}%</span>
+            </div>
+          </td>
+          <td class="text-muted">{{ sale.sale_date|date:"d.m.Y" }}</td>
+          <td><a href="{% url 'sales:sale_detail' sale.pk %}" class="btn btn-sm btn-outline-secondary">Открыть</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- Recent audit log -->
+{% if user.is_director and recent_logs %}
+<div class="crm-card mt-4">
+  <div class="card-header-crm d-flex justify-content-between">
+    <span class="card-title-crm">Последние действия сотрудников</span>
+    <a href="{% url 'audit:list' %}" class="btn btn-sm btn-outline-gold">Весь журнал</a>
+  </div>
+  <div class="audit-list">
+    {% for log in recent_logs %}
+    <div class="audit-item">
+      <span class="badge bg-{{ log.action_color }} me-2">{{ log.get_action_display }}</span>
+      <span class="fw-semibold">{{ log.user.display_name }}</span>
+      {% if log.description %} — <span class="text-muted">{{ log.description }}</span>{% endif %}
+      <span class="ms-auto text-muted small">{{ log.timestamp|timesince }} назад</span>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+{% if user.can_see_finance %}
+const ctx = document.getElementById('incomeChart');
+if (ctx) {
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: {{ chart_labels|safe }},
+      datasets: [
+        {
+          label: 'Доход',
+          data: {{ chart_income|safe }},
+          backgroundColor: 'rgba(212, 175, 55, 0.7)',
+          borderColor: '#d4af37',
+          borderWidth: 1,
+          borderRadius: 6,
+        },
+        {
+          label: 'Расходы',
+          data: {{ chart_expenses|safe }},
+          backgroundColor: 'rgba(220, 53, 69, 0.5)',
+          borderColor: '#dc3545',
+          borderWidth: 1,
+          borderRadius: 6,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'top' },
+        tooltip: {
+          callbacks: {
+            label: ctx => '$' + ctx.parsed.y.toLocaleString()
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            callback: v => '$' + v.toLocaleString()
+          },
+          grid: { color: 'rgba(0,0,0,0.05)' }
+        },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+}
+{% endif %}
+</script>
+{% endblock %}

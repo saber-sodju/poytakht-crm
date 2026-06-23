@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Лиды{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Лиды / CRM</h1>
+    <p class="page-sub text-muted">Потенциальные покупатели</p>
+  </div>
+  <a href="{% url 'clients:lead_create' %}" class="btn btn-gold"><i class="bi bi-plus-lg me-1"></i>Новый лид</a>
+</div>
+
+{% if due_today > 0 %}
+<div class="alert alert-warning d-flex align-items-center gap-2 mb-3">
+  <i class="bi bi-telephone"></i>
+  <strong>{{ due_today }} лидов</strong>&nbsp;нужно сегодня перезвонить!
+</div>
+{% endif %}
+
+<div class="crm-card">
+  <div class="card-header-crm">
+    <form method="get" class="d-flex gap-2 flex-wrap">
+      <div class="search-input-wrap">
+        <i class="bi bi-search"></i>
+        <input type="text" name="q" value="{{ q }}" placeholder="Поиск по имени, телефону..." class="search-input" />
+      </div>
+      <select name="status" class="form-select form-select-sm" style="width: auto;">
+        <option value="">Все статусы</option>
+        {% for key, name in status_choices %}
+        <option value="{{ key }}" {% if status_filter == key %}selected{% endif %}>{{ name }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="btn btn-gold btn-sm">Фильтр</button>
+      {% if q or status_filter %}<a href="{% url 'clients:leads' %}" class="btn btn-outline-secondary btn-sm">Сброс</a>{% endif %}
+    </form>
+  </div>
+
+  <div class="table-responsive">
+    <table class="crm-table">
+      <thead>
+        <tr>
+          <th>Имя</th>
+          <th>Телефон</th>
+          <th>Интерес</th>
+          <th>Бюджет</th>
+          <th>Источник</th>
+          <th>Статус</th>
+          <th>Перезвонить</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for lead in leads %}
+        <tr>
+          <td class="fw-semibold">{{ lead.name }}</td>
+          <td><a href="tel:{{ lead.phone }}">{{ lead.phone }}</a></td>
+          <td>{{ lead.interested_in|default:"—" }}</td>
+          <td>{% if lead.budget %}${{ lead.budget|floatformat:0|intcomma }}{% else %}—{% endif %}</td>
+          <td>{{ lead.get_source_display }}</td>
+          <td><span class="badge bg-{{ lead.status_color }}">{{ lead.get_status_display }}</span></td>
+          <td class="{% if lead.next_contact_date %}text-warning{% endif %}">{{ lead.next_contact_date|date:"d.m.Y"|default:"—" }}</td>
+          <td><a href="{% url 'clients:lead_edit' lead.pk %}" class="btn btn-sm btn-outline-gold">Ред.</a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" class="text-center py-4 text-muted">Лидов не найдено</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

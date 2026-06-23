@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Бронирования{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Бронирования</h1>
+    <p class="page-sub text-muted">Активные брони: {{ bookings.count }}</p>
+  </div>
+  <a href="{% url 'sales:booking_create' %}" class="btn btn-gold"><i class="bi bi-plus-lg me-1"></i>Новое бронирование</a>
+</div>
+
+<div class="crm-card">
+  <div class="table-responsive">
+    <table class="crm-table">
+      <thead>
+        <tr>
+          <th>Клиент</th>
+          <th>Квартира</th>
+          <th>Задаток</th>
+          <th>Дата начала</th>
+          <th>Дата окончания</th>
+          <th>Осталось</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for booking in bookings %}
+        <tr class="{% if booking.is_expired %}table-danger{% elif booking.days_left <= 3 %}table-warning{% endif %}">
+          <td class="fw-semibold">
+            <a href="{% url 'clients:client_detail' booking.client.pk %}" class="text-dark">{{ booking.client.full_name }}</a>
+          </td>
+          <td><a href="{% url 'complex:apartment_detail' booking.apartment.pk %}">Кв. {{ booking.apartment.number }}, {{ booking.apartment.block.name }}</a></td>
+          <td>${{ booking.deposit|floatformat:0|intcomma }}</td>
+          <td>{{ booking.start_date|date:"d.m.Y" }}</td>
+          <td>{{ booking.end_date|date:"d.m.Y" }}</td>
+          <td>
+            {% if booking.is_expired %}
+            <span class="badge bg-danger">Истекло</span>
+            {% elif booking.days_left <= 3 %}
+            <span class="badge bg-warning text-dark">{{ booking.days_left }} дн.</span>
+            {% else %}
+            <span class="text-muted">{{ booking.days_left }} дн.</span>
+            {% endif %}
+          </td>
+          <td>
+            <div class="d-flex gap-1">
+              <a href="{% url 'sales:create' %}?apt={{ booking.apartment.pk }}" class="btn btn-sm btn-gold">Продать</a>
+              <a href="{% url 'sales:booking_cancel' booking.pk %}" class="btn btn-sm btn-outline-danger">Отмена</a>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="text-center py-4 text-muted">Бронирований нет</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+
+{% block title %}Профиль{% endblock %}
+
+{% block content %}
+<div class="page-header"><h1 class="page-title">Мой профиль</h1></div>
+<div class="crm-card" style="max-width: 500px;">
+  <div class="p-4 text-center border-bottom">
+    <div class="user-avatar-lg mx-auto mb-3">{{ object.display_name|first|upper }}</div>
+    <h4>{{ object.display_name }}</h4>
+    <span class="badge bg-secondary">{{ object.get_role_display }}</span>
+  </div>
+  <div class="detail-rows">
+    <div class="detail-row"><span>Логин</span><strong>{{ object.username }}</strong></div>
+    {% if object.email %}<div class="detail-row"><span>Email</span><strong>{{ object.email }}</strong></div>{% endif %}
+    {% if object.phone %}<div class="detail-row"><span>Телефон</span><strong>{{ object.phone }}</strong></div>{% endif %}
+    <div class="detail-row"><span>В системе с</span><strong>{{ object.date_joined|date:"d.m.Y" }}</strong></div>
+  </div>
+</div>
+{% endblock %}

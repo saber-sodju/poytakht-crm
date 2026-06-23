@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Жилой комплекс{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Жилой комплекс</h1>
+    <p class="page-sub text-muted">Управление объектами, блоками и квартирами</p>
+  </div>
+  {% if user.can_manage_complex %}
+  <div class="d-flex gap-2">
+    <a href="{% url 'complex:block_create' %}" class="btn btn-outline-gold"><i class="bi bi-plus me-1"></i>Новый блок</a>
+    <a href="{% url 'complex:create' %}" class="btn btn-gold"><i class="bi bi-plus-lg me-1"></i>Новый комплекс</a>
+  </div>
+  {% endif %}
+</div>
+
+{% for complex in complexes %}
+<div class="crm-card mb-4">
+  <div class="card-header-crm">
+    <div>
+      <span class="card-title-crm">{{ complex.name }}</span>
+      <span class="text-muted small ms-2">{{ complex.address }}</span>
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+      <span class="badge bg-success">{{ complex.free_apartments }} свободно</span>
+      <span class="badge bg-danger">{{ complex.sold_apartments }} продано</span>
+      <span class="badge bg-secondary">{{ complex.total_apartments }} всего</span>
+    </div>
+  </div>
+
+  <div class="blocks-grid">
+    {% for block in complex.blocks.all %}
+    <a href="{% url 'complex:block_detail' block.pk %}" class="block-card {% if block.is_over_budget %}over-budget{% endif %}">
+      <div class="block-name">{{ block.name }}</div>
+      <div class="block-stats">
+        <div class="block-stat">
+          <div class="block-stat-value text-success">{{ block.free_apartments }}</div>
+          <div class="block-stat-label">Свободно</div>
+        </div>
+        <div class="block-stat">
+          <div class="block-stat-value text-warning">{{ block.total_apartments|add:"-"|add:block.free_apartments|add:"-"|add:block.sold_apartments }}</div>
+          <div class="block-stat-label">Забронировано</div>
+        </div>
+        <div class="block-stat">
+          <div class="block-stat-value text-danger">{{ block.sold_apartments }}</div>
+          <div class="block-stat-label">Продано</div>
+        </div>
+      </div>
+      {% if block.is_over_budget %}
+      <div class="block-budget-warn">⚠️ Бюджет превышен</div>
+      {% endif %}
+    </a>
+    {% empty %}
+    <div class="text-muted p-3">Блоков пока нет. <a href="{% url 'complex:block_create' %}">Добавить блок</a></div>
+    {% endfor %}
+  </div>
+</div>
+{% empty %}
+<div class="empty-state">
+  <i class="bi bi-buildings"></i>
+  <h3>Комплексов пока нет</h3>
+  <p>Добавьте первый жилой комплекс</p>
+  <a href="{% url 'complex:create' %}" class="btn btn-gold">Добавить комплекс</a>
+</div>
+{% endfor %}
+{% endblock %}

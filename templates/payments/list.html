@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Платежи{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Платежи</h1>
+    <p class="page-sub text-muted">Итого: <strong class="text-gold">${{ total|floatformat:0|intcomma }}</strong></p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'payments:overdue' %}" class="btn btn-outline-danger">Просрочки</a>
+    <a href="{% url 'payments:upcoming' %}" class="btn btn-outline-warning">Ожидаемые</a>
+    {% if user.can_see_finance %}
+    <a href="{% url 'payments:add' %}" class="btn btn-gold">+ Платёж</a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="crm-card">
+  <div class="card-header-crm">
+    <form method="get" class="search-form">
+      <div class="search-input-wrap">
+        <i class="bi bi-search"></i>
+        <input type="text" name="q" value="{{ q }}" placeholder="Клиент или квартира..." class="search-input" />
+      </div>
+      <button type="submit" class="btn btn-gold btn-sm">Найти</button>
+    </form>
+  </div>
+  <div class="table-responsive">
+    <table class="crm-table">
+      <thead>
+        <tr><th>Дата</th><th>Клиент</th><th>Квартира</th><th>Сумма</th><th>Добавил</th><th>Квитанция</th></tr>
+      </thead>
+      <tbody>
+        {% for p in payments %}
+        <tr>
+          <td>{{ p.payment_date|date:"d.m.Y" }}</td>
+          <td><a href="{% url 'clients:client_detail' p.sale.client.pk %}" class="fw-semibold">{{ p.sale.client.full_name }}</a></td>
+          <td><a href="{% url 'complex:apartment_detail' p.sale.apartment.pk %}">Кв. {{ p.sale.apartment.number }}</a></td>
+          <td class="fw-semibold text-success">${{ p.amount|floatformat:0|intcomma }}</td>
+          <td class="text-muted small">{{ p.added_by.display_name|default:"—" }}</td>
+          <td>{% if p.receipt %}<a href="{{ p.receipt.url }}" target="_blank" class="btn btn-xs btn-outline-secondary">📄</a>{% else %}—{% endif %}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="text-center py-4 text-muted">Платежей нет</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

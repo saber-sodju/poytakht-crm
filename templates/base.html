@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}Poytakht CRM{% endblock %} | Пойтахт Иншоот</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'css/crm.css' %}" />
+</head>
+<body>
+
+{% if user.is_authenticated %}
+<!-- Sidebar -->
+<aside class="crm-sidebar" id="sidebar">
+  <div class="sidebar-brand">
+    <img src="{% static 'img/logo.png' %}" alt="Пойтахт Иншоот" class="brand-logo-img" />
+    <div class="brand-text">
+      <div class="brand-name">Poytakht</div>
+      <div class="brand-sub">CRM System</div>
+    </div>
+  </div>
+
+  <nav class="sidebar-nav">
+    {% if user.is_client_role %}
+    <div class="nav-group">
+      <a href="{% url 'dashboard:index' %}" class="nav-item active">
+        <i class="bi bi-house-heart"></i>
+        <span>Мой кабинет</span>
+      </a>
+    </div>
+    {% else %}
+    <div class="nav-group">
+      <a href="{% url 'dashboard:index' %}" class="nav-item {% if request.resolver_match.app_name == 'dashboard' and request.resolver_match.url_name == 'index' %}active{% endif %}">
+        <i class="bi bi-speedometer2"></i>
+        <span>Дашборд</span>
+      </a>
+    </div>
+
+    <div class="nav-label">Объект</div>
+    <div class="nav-group">
+      <a href="{% url 'complex:list' %}" class="nav-item {% if request.resolver_match.app_name == 'complex' %}active{% endif %}">
+        <i class="bi bi-buildings"></i>
+        <span>Комплекс</span>
+      </a>
+    </div>
+
+    <div class="nav-label">Клиенты</div>
+    <div class="nav-group">
+      <a href="{% url 'clients:list' %}" class="nav-item {% if request.resolver_match.app_name == 'clients' and 'lead' not in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-people"></i>
+        <span>Клиенты</span>
+      </a>
+      <a href="{% url 'clients:leads' %}" class="nav-item {% if 'lead' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-funnel"></i>
+        <span>Лиды / CRM</span>
+      </a>
+    </div>
+
+    <div class="nav-label">Продажи</div>
+    <div class="nav-group">
+      <a href="{% url 'sales:list' %}" class="nav-item {% if request.resolver_match.app_name == 'sales' and 'booking' not in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-bag-check"></i>
+        <span>Продажи</span>
+      </a>
+      <a href="{% url 'sales:bookings' %}" class="nav-item {% if 'booking' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-calendar-check"></i>
+        <span>Бронирования</span>
+      </a>
+    </div>
+
+    <div class="nav-label">Финансы</div>
+    <div class="nav-group">
+      <a href="{% url 'payments:list' %}" class="nav-item {% if request.resolver_match.app_name == 'payments' and request.resolver_match.url_name == 'list' %}active{% endif %}">
+        <i class="bi bi-cash-stack"></i>
+        <span>Платежи</span>
+      </a>
+      <a href="{% url 'payments:overdue' %}" class="nav-item {% if request.resolver_match.url_name == 'overdue' %}active{% endif %}">
+        <i class="bi bi-exclamation-triangle"></i>
+        <span>Долги / Просрочки</span>
+      </a>
+      <a href="{% url 'expenses:list' %}" class="nav-item {% if request.resolver_match.app_name == 'expenses' %}active{% endif %}">
+        <i class="bi bi-receipt"></i>
+        <span>Расходы</span>
+      </a>
+    </div>
+
+    <div class="nav-label">Аналитика</div>
+    <div class="nav-group">
+      <a href="{% url 'dashboard:reports' %}" class="nav-item {% if request.resolver_match.url_name == 'reports' %}active{% endif %}">
+        <i class="bi bi-bar-chart-line"></i>
+        <span>Отчёты</span>
+      </a>
+      {% if user.is_director %}
+      <a href="{% url 'audit:list' %}" class="nav-item {% if request.resolver_match.app_name == 'audit' %}active{% endif %}">
+        <i class="bi bi-shield-check"></i>
+        <span>Журнал действий</span>
+      </a>
+      <a href="{% url 'accounts:users' %}" class="nav-item {% if request.resolver_match.app_name == 'accounts' and 'user' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-person-gear"></i>
+        <span>Сотрудники</span>
+      </a>
+      {% endif %}
+    </div>
+    {% endif %}
+  </nav>
+
+  <div class="sidebar-user">
+    <div class="user-avatar">{{ user.display_name|first|upper }}</div>
+    <div class="user-info">
+      <div class="user-name">{{ user.display_name }}</div>
+      <div class="user-role">{{ user.get_role_display }}</div>
+    </div>
+    <a href="{% url 'accounts:logout' %}" class="user-logout" title="Выйти">
+      <i class="bi bi-box-arrow-right"></i>
+    </a>
+  </div>
+</aside>
+
+<!-- Top navbar -->
+<div class="crm-topbar" id="topbar">
+  <button class="topbar-toggle" id="sidebarToggle" type="button">
+    <i class="bi bi-list"></i>
+  </button>
+
+  <div class="topbar-search d-none d-md-flex">
+    <form action="{% url 'clients:list' %}" method="get" class="d-flex">
+      <div class="search-input-wrap">
+        <i class="bi bi-search"></i>
+        <input type="text" name="q" placeholder="Поиск клиентов, квартир..." class="search-input" value="{{ request.GET.q }}" />
+      </div>
+    </form>
+  </div>
+
+  <div class="topbar-actions">
+    <!-- Notifications dropdown -->
+    <div class="dropdown">
+      <button class="topbar-btn position-relative" data-bs-toggle="dropdown">
+        <i class="bi bi-bell"></i>
+        {% if unread_count > 0 %}
+        <span class="notif-badge">{{ unread_count }}</span>
+        {% endif %}
+      </button>
+      <div class="dropdown-menu dropdown-menu-end notif-dropdown">
+        <div class="notif-header d-flex justify-content-between align-items-center">
+          <span>Уведомления</span>
+          {% if unread_count > 0 %}
+          <a href="{% url 'accounts:notifications_read' %}" class="text-gold small">Прочитать все</a>
+          {% endif %}
+        </div>
+        {% if recent_notifications %}
+          {% for n in recent_notifications %}
+          <div class="notif-item {% if not n.is_read %}unread{% endif %}">
+            <div class="notif-title">{{ n.title }}</div>
+            <div class="notif-time text-muted small">{{ n.created_at|timesince }} назад</div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="notif-empty">Нет новых уведомлений</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="topbar-user-name d-none d-lg-block">{{ user.display_name }}</div>
+  </div>
+</div>
+
+<!-- Main content -->
+<main class="crm-main" id="main">
+{% endif %}
+
+{% if messages %}
+<div class="messages-wrap">
+  {% for message in messages %}
+  <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show crm-alert" role="alert">
+    {{ message }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% block content %}{% endblock %}
+
+{% if user.is_authenticated %}
+</main>
+
+<!-- Mobile bottom nav -->
+<nav class="mobile-bottom-nav d-md-none">
+  {% if user.is_client_role %}
+  <a href="{% url 'dashboard:index' %}" class="mob-nav-item active">
+    <i class="bi bi-house-heart"></i><span>Мой кабинет</span>
+  </a>
+  <a href="{% url 'accounts:logout' %}" class="mob-nav-item">
+    <i class="bi bi-box-arrow-right"></i><span>Выйти</span>
+  </a>
+  {% else %}
+  <a href="{% url 'dashboard:index' %}" class="mob-nav-item">
+    <i class="bi bi-speedometer2"></i><span>Дашборд</span>
+  </a>
+  <a href="{% url 'complex:list' %}" class="mob-nav-item">
+    <i class="bi bi-buildings"></i><span>Объект</span>
+  </a>
+  <a href="{% url 'clients:list' %}" class="mob-nav-item">
+    <i class="bi bi-people"></i><span>Клиенты</span>
+  </a>
+  <a href="{% url 'sales:list' %}" class="mob-nav-item">
+    <i class="bi bi-bag-check"></i><span>Продажи</span>
+  </a>
+  <a href="{% url 'payments:list' %}" class="mob-nav-item">
+    <i class="bi bi-cash-stack"></i><span>Платежи</span>
+  </a>
+  {% endif %}
+</nav>
+{% endif %}
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+{% load static %}
+<script src="{% static 'js/crm.js' %}"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

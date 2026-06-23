@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ complex.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">{{ complex.name }}</h1>
+    <p class="page-sub text-muted">{{ complex.address }}</p>
+  </div>
+  {% if user.can_manage_complex %}
+  <a href="{% url 'complex:block_create' %}" class="btn btn-gold">+ Блок</a>
+  {% endif %}
+</div>
+<div class="blocks-grid">
+  {% for block in blocks %}
+  <a href="{% url 'complex:block_detail' block.pk %}" class="block-card">
+    <div class="block-name">{{ block.name }}</div>
+    <div class="block-stats">
+      <div class="block-stat"><div class="block-stat-value text-success">{{ block.free_apartments }}</div><div class="block-stat-label">Свободно</div></div>
+      <div class="block-stat"><div class="block-stat-value text-danger">{{ block.sold_apartments }}</div><div class="block-stat-label">Продано</div></div>
+      <div class="block-stat"><div class="block-stat-value">{{ block.total_apartments }}</div><div class="block-stat-label">Всего</div></div>
+    </div>
+  </a>
+  {% empty %}
+  <div class="text-muted">Блоков нет. <a href="{% url 'complex:block_create' %}">Добавить</a></div>
+  {% endfor %}
+</div>
+{% endblock %}

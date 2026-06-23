@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Отчёты{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Отчёты</h1>
+    <p class="page-sub text-muted">За {{ month_start|date:"F Y" }}</p>
+  </div>
+</div>
+
+<!-- Month summary -->
+<div class="kpi-grid mb-4">
+  <div class="kpi-card">
+    <div class="kpi-icon bg-primary-soft"><i class="bi bi-bag-check text-primary"></i></div>
+    <div class="kpi-body">
+      <div class="kpi-value">{{ total_sales_count }}</div>
+      <div class="kpi-label">Продаж в этом месяце</div>
+    </div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-icon bg-gold-soft"><i class="bi bi-cash text-gold"></i></div>
+    <div class="kpi-body">
+      <div class="kpi-value">${{ total_sales_amount|floatformat:0|intcomma }}</div>
+      <div class="kpi-label">Сумма продаж</div>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <!-- Expenses by category chart -->
+  <div class="col-lg-6 mb-4">
+    <div class="crm-card h-100">
+      <div class="card-header-crm"><span class="card-title-crm">Расходы по категориям</span></div>
+      <div class="chart-wrap">
+        <canvas id="expenseChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Debts table -->
+  <div class="col-lg-6 mb-4">
+    <div class="crm-card h-100">
+      <div class="card-header-crm d-flex justify-content-between">
+        <span class="card-title-crm">Крупнейшие долги</span>
+        <a href="{% url 'payments:overdue' %}" class="btn btn-sm btn-outline-danger">Просрочки</a>
+      </div>
+      <div class="table-responsive">
+        <table class="crm-table">
+          <thead><tr><th>Клиент</th><th>Квартира</th><th>Долг</th></tr></thead>
+          <tbody>
+            {% for sale in debt_clients %}
+            <tr>
+              <td><a href="{% url 'clients:client_detail' sale.client.pk %}">{{ sale.client.full_name }}</a></td>
+              <td>Кв. {{ sale.apartment.number }}</td>
+              <td class="fw-semibold text-danger">${{ sale.remaining_amount|floatformat:0|intcomma }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="3" class="text-center text-success py-3">Долгов нет!</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Quick links to other reports -->
+<div class="kpi-grid">
+  <a href="{% url 'payments:overdue' %}" class="kpi-card text-decoration-none">
+    <div class="kpi-icon bg-danger-soft"><i class="bi bi-exclamation-triangle text-danger"></i></div>
+    <div class="kpi-body"><div class="kpi-label">Просроченные платежи</div></div>
+  </a>
+  <a href="{% url 'payments:upcoming' %}" class="kpi-card text-decoration-none">
+    <div class="kpi-icon bg-warning-soft"><i class="bi bi-clock text-warning"></i></div>
+    <div class="kpi-body"><div class="kpi-label">Ожидаемые платежи</div></div>
+  </a>
+  <a href="{% url 'sales:list' %}" class="kpi-card text-decoration-none">
+    <div class="kpi-icon bg-success-soft"><i class="bi bi-bag-check text-success"></i></div>
+    <div class="kpi-body"><div class="kpi-label">Все продажи</div></div>
+  </a>
+  <a href="{% url 'expenses:list' %}" class="kpi-card text-decoration-none">
+    <div class="kpi-icon bg-primary-soft"><i class="bi bi-receipt text-primary"></i></div>
+    <div class="kpi-body"><div class="kpi-label">Все расходы</div></div>
+  </a>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const expData = {{ exp_by_cat|safe }};
+const labels = Object.keys(expData);
+const values = Object.values(expData);
+const colors = ['#d4af37','#dc3545','#0d6efd','#198754','#fd7e14','#6f42c1','#0dcaf0','#6c757d'];
+
+const ctx = document.getElementById('expenseChart');
+if (ctx && labels.length > 0) {
+  new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: labels,
+      datasets: [{
+        data: values,
+        backgroundColor: colors.slice(0, labels.length),
+        borderWidth: 2,
+        borderColor: '#fff',
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom' },
+        tooltip: { callbacks: { label: ctx => '$' + ctx.parsed.toLocaleString() } }
+      }
+    }
+  });
+}
+</script>
+{% endblock %}

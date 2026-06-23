@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Продажа — {{ sale.client.full_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-1">
+        <li class="breadcrumb-item"><a href="{% url 'sales:list' %}">Продажи</a></li>
+        <li class="breadcrumb-item active">{{ sale.client.full_name }}</li>
+      </ol>
+    </nav>
+    <h1 class="page-title">{{ sale.client.full_name }}</h1>
+    <p class="page-sub text-muted">Квартира {{ sale.apartment.number }}, {{ sale.apartment.block.name }}</p>
+  </div>
+  <a href="{% url 'payments:add' %}?sale={{ sale.pk }}" class="btn btn-gold">+ Добавить платёж</a>
+</div>
+
+<div class="detail-grid">
+  <div>
+    <div class="crm-card mb-3">
+      <div class="card-header-crm"><span class="card-title-crm">Детали сделки</span></div>
+      <div class="detail-rows">
+        <div class="detail-row"><span>Клиент</span><a href="{% url 'clients:client_detail' sale.client.pk %}" class="fw-semibold text-gold">{{ sale.client.full_name }}</a></div>
+        <div class="detail-row"><span>Телефон</span><a href="tel:{{ sale.client.phone }}">{{ sale.client.phone }}</a></div>
+        <div class="detail-row"><span>Квартира</span><a href="{% url 'complex:apartment_detail' sale.apartment.pk %}">Кв. {{ sale.apartment.number }}</a></div>
+        <div class="detail-row"><span>Блок / Этаж</span><strong>{{ sale.apartment.block.name }}, этаж {{ sale.apartment.floor.number }}</strong></div>
+        <div class="detail-row"><span>Тип оплаты</span><span class="badge bg-secondary">{{ sale.get_payment_type_display }}</span></div>
+        <div class="detail-row"><span>Дата продажи</span><strong>{{ sale.sale_date|date:"d.m.Y" }}</strong></div>
+        {% if sale.contract_number %}
+        <div class="detail-row"><span>№ договора</span><strong>{{ sale.contract_number }}</strong></div>
+        <div class="detail-row"><span>Дата договора</span><strong>{{ sale.contract_date|date:"d.m.Y" }}</strong></div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="crm-card mb-3">
+      <div class="card-header-crm"><span class="card-title-crm">Финансы</span></div>
+      <div class="detail-rows">
+        <div class="detail-row"><span>Цена квартиры</span><strong class="text-gold fs-5">${{ sale.total_price|floatformat:0|intcomma }}</strong></div>
+        <div class="detail-row"><span>Оплачено</span><strong class="text-success fs-5">${{ sale.paid_amount|floatformat:0|intcomma }}</strong></div>
+        <div class="detail-row"><span>Остаток</span><strong class="{% if sale.debt > 0 %}text-danger{% else %}text-success{% endif %} fs-5">${{ sale.debt|floatformat:0|intcomma }}</strong></div>
+      </div>
+      <div class="px-3 pb-3">
+        <div class="d-flex justify-content-between mb-1">
+          <span class="small text-muted">Прогресс оплаты</span>
+          <span class="small fw-semibold">{{ sale.payment_progress }}%</span>
+        </div>
+        <div class="progress" style="height: 12px;">
+          <div class="progress-bar bg-gold" style="width: {{ sale.payment_progress }}%"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <!-- Payment history -->
+    <div class="crm-card mb-3">
+      <div class="card-header-crm d-flex justify-content-between">
+        <span class="card-title-crm">История платежей</span>
+        <a href="{% url 'payments:add' %}?sale={{ sale.pk }}" class="btn btn-sm btn-gold">+ Платёж</a>
+      </div>
+      {% if sale.payments.all %}
+      <div class="table-responsive">
+        <table class="crm-table">
+          <thead><tr><th>Дата</th><th>Сумма</th><th>Добавил</th><th>Квитанция</th></tr></thead>
+          <tbody>
+            {% for p in sale.payments.all %}
+            <tr>
+              <td>{{ p.payment_date|date:"d.m.Y" }}</td>
+              <td class="fw-semibold text-success">${{ p.amount|floatformat:0|intcomma }}</td>
+              <td class="text-muted small">{{ p.added_by.display_name|default:"—" }}</td>
+              <td>{% if p.receipt %}<a href="{{ p.receipt.url }}" target="_blank" class="btn btn-xs btn-outline-gold">📄</a>{% else %}—{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="p-4 text-center text-muted">Платежей пока нет</div>
+      {% endif %}
+    </div>
+
+    <!-- Payment schedule -->
+    <div class="crm-card">
+      <div class="card-header-crm d-flex justify-content-between">
+        <span class="card-title-crm">График платежей</span>
+        <a href="{% url 'payments:schedule_add' sale.pk %}" class="btn btn-sm btn-outline-gold">+ Платёж в график</a>
+      </div>
+      {% if sale.schedule.all %}
+      <div class="table-responsive">
+        <table class="crm-table">
+          <thead><tr><th>Дата</th><th>Сумма</th><th>Статус</th></tr></thead>
+          <tbody>
+            {% for s in sale.schedule.all %}
+            <tr class="{% if s.is_overdue %}table-danger{% elif s.is_due_today %}table-warning{% endif %}">
+              <td>{{ s.due_date|date:"d.m.Y" }}</td>
+              <td>${{ s.amount|floatformat:0|intcomma }}</td>
+              <td>
+                {% if s.is_paid %}<span class="badge bg-success">Оплачено {{ s.paid_date|date:"d.m" }}</span>
+                {% elif s.is_overdue %}<span class="badge bg-danger">Просрочено</span>
+                {% elif s.is_due_today %}<span class="badge bg-warning text-dark">Сегодня</span>
+                {% else %}<span class="badge bg-secondary">Ожидает</span>{% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="p-4 text-center text-muted">
+        <a href="{% url 'payments:schedule_add' sale.pk %}" class="btn btn-outline-gold btn-sm">Добавить график платежей</a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

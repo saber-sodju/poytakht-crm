@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Мой кабинет{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">Мой кабинет</h1>
+  <p class="page-sub text-muted">{{ client.full_name }}</p>
+</div>
+{% for sale in sales %}
+<div class="crm-card mb-4">
+  <div class="card-header-crm">
+    <span class="card-title-crm">Квартира {{ sale.apartment.number }}</span>
+    <span class="badge bg-{{ sale.apartment.status_color }}">{{ sale.apartment.get_status_display }}</span>
+  </div>
+  <div class="detail-rows">
+    <div class="detail-row"><span>Блок / Этаж</span><strong>{{ sale.apartment.block.name }}, этаж {{ sale.apartment.floor.number }}</strong></div>
+    <div class="detail-row"><span>Площадь</span><strong>{{ sale.apartment.area }} м²</strong></div>
+    <div class="detail-row"><span>Тип оплаты</span><strong>{{ sale.get_payment_type_display }}</strong></div>
+    <div class="detail-row"><span>Цена</span><strong class="text-gold">${{ sale.total_price|floatformat:0|intcomma }}</strong></div>
+    <div class="detail-row"><span>Оплачено</span><strong class="text-success">${{ sale.paid_amount|floatformat:0|intcomma }}</strong></div>
+    <div class="detail-row"><span>Остаток</span><strong class="text-danger">${{ sale.debt|floatformat:0|intcomma }}</strong></div>
+  </div>
+  <div class="px-3 pb-3">
+    <div class="progress" style="height: 10px;">
+      <div class="progress-bar bg-gold" style="width: {{ sale.payment_progress }}%"></div>
+    </div>
+    <div class="small text-muted mt-1">{{ sale.payment_progress }}% оплачено</div>
+  </div>
+  {% if sale.schedule.all %}
+  <div class="border-top p-3">
+    <h6 class="fw-semibold mb-2">График платежей</h6>
+    <div class="table-responsive">
+      <table class="crm-table">
+        <thead><tr><th>Дата</th><th>Сумма</th><th>Статус</th></tr></thead>
+        <tbody>
+          {% for s in sale.schedule.all %}
+          <tr>
+            <td>{{ s.due_date|date:"d.m.Y" }}</td>
+            <td>${{ s.amount|floatformat:0|intcomma }}</td>
+            <td>{% if s.is_paid %}<span class="badge bg-success">Оплачено</span>
+                {% elif s.is_overdue %}<span class="badge bg-danger">Просрочено</span>
+                {% else %}<span class="badge bg-secondary">Ожидает</span>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endfor %}
+{% endblock %}

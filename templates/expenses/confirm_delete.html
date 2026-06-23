@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Удалить расход{% endblock %}
+
+{% block content %}
+<div class="page-header"><h1 class="page-title">Удалить расход</h1></div>
+<div class="form-card text-center">
+  <i class="bi bi-trash text-danger fs-1 mb-3 d-block"></i>
+  <h5>Удалить расход?</h5>
+  <p class="text-muted">{{ expense.get_category_display }} — <strong>${{ expense.amount|floatformat:0|intcomma }}</strong> — {{ expense.date|date:"d.m.Y" }}</p>
+  <form method="post" class="d-flex gap-2 justify-content-center mt-4">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-danger px-4">Удалить</button>
+    <a href="{% url 'expenses:list' %}" class="btn btn-outline-secondary">Отмена</a>
+  </form>
+</div>
+{% endblock %}

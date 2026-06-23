@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+
+{% block title %}Журнал действий{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Журнал действий</h1>
+    <p class="page-sub text-muted">Последние 500 записей</p>
+  </div>
+</div>
+
+<div class="crm-card">
+  <div class="card-header-crm">
+    <form method="get" class="d-flex gap-2 flex-wrap">
+      <div class="search-input-wrap">
+        <i class="bi bi-search"></i>
+        <input type="text" name="q" value="{{ q }}" placeholder="Пользователь, действие..." class="search-input" />
+      </div>
+      <select name="action" class="form-select form-select-sm" style="width: auto;">
+        <option value="">Все действия</option>
+        {% for key, name in action_choices %}
+        <option value="{{ key }}" {% if action == key %}selected{% endif %}>{{ name }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="btn btn-gold btn-sm">Фильтр</button>
+      {% if q or action %}<a href="{% url 'audit:list' %}" class="btn btn-outline-secondary btn-sm">Сброс</a>{% endif %}
+    </form>
+  </div>
+  <div class="table-responsive">
+    <table class="crm-table">
+      <thead>
+        <tr><th>Время</th><th>Пользователь</th><th>Действие</th><th>Объект</th><th>Описание</th><th>IP</th></tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+        <tr>
+          <td class="text-muted small">{{ log.timestamp|date:"d.m.Y H:i" }}</td>
+          <td class="fw-semibold">{{ log.user.display_name|default:"—" }}</td>
+          <td><span class="badge bg-{{ log.action_color }}">{{ log.get_action_display }}</span></td>
+          <td class="small text-muted">{{ log.object_repr|default:"—" }}</td>
+          <td class="small">{{ log.description|truncatechars:80 }}</td>
+          <td class="small text-muted">{{ log.ip_address|default:"—" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="text-center py-4 text-muted">Записей нет</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

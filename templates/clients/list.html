@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Клиенты{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Клиенты</h1>
+    <p class="page-sub text-muted">{{ clients.count }} клиентов</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'clients:leads' %}" class="btn btn-outline-gold"><i class="bi bi-funnel me-1"></i>Лиды</a>
+    <a href="{% url 'clients:create' %}" class="btn btn-gold"><i class="bi bi-plus-lg me-1"></i>Новый клиент</a>
+  </div>
+</div>
+
+<div class="crm-card">
+  <div class="card-header-crm">
+    <form method="get" class="search-form">
+      <div class="search-input-wrap">
+        <i class="bi bi-search"></i>
+        <input type="text" name="q" value="{{ q }}" placeholder="Поиск по имени, телефону, паспорту..." class="search-input" />
+      </div>
+      <button type="submit" class="btn btn-gold btn-sm">Найти</button>
+      {% if q %}<a href="{% url 'clients:list' %}" class="btn btn-outline-secondary btn-sm">Сбросить</a>{% endif %}
+    </form>
+  </div>
+
+  <div class="table-responsive">
+    <table class="crm-table">
+      <thead>
+        <tr>
+          <th>ФИО</th>
+          <th>Телефон</th>
+          <th>Email</th>
+          <th>Квартиры</th>
+          <th>Долг</th>
+          <th>Добавлен</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for client in clients %}
+        <tr>
+          <td>
+            <a href="{% url 'clients:client_detail' client.pk %}" class="fw-semibold text-dark">{{ client.full_name }}</a>
+          </td>
+          <td><a href="tel:{{ client.phone }}">{{ client.phone }}</a></td>
+          <td>{{ client.email|default:"—" }}</td>
+          <td>
+            {% for sale in client.sales.all %}
+            <span class="badge bg-secondary me-1">Кв. {{ sale.apartment.number }}</span>
+            {% empty %}—{% endfor %}
+          </td>
+          <td>
+            {% with debt=client.total_debt %}
+            {% if debt > 0 %}
+            <span class="text-danger fw-semibold">${{ debt|floatformat:0|intcomma }}</span>
+            {% else %}
+            <span class="text-success">Нет долга</span>
+            {% endif %}
+            {% endwith %}
+          </td>
+          <td class="text-muted small">{{ client.created_at|date:"d.m.Y" }}</td>
+          <td>
+            <div class="d-flex gap-1">
+              <a href="{% url 'clients:client_detail' client.pk %}" class="btn btn-sm btn-outline-secondary">Открыть</a>
+              <a href="{% url 'clients:edit' client.pk %}" class="btn btn-sm btn-outline-gold">Ред.</a>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="text-center py-4 text-muted">Клиентов не найдено</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

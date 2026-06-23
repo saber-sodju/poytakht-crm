@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Ожидаемые платежи{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">Ожидаемые платежи</h1>
+</div>
+<div class="crm-card">
+  <div class="table-responsive">
+    <table class="crm-table">
+      <thead>
+        <tr><th>Дата</th><th>Клиент</th><th>Квартира</th><th>Сумма</th><th>Статус</th></tr>
+      </thead>
+      <tbody>
+        {% for s in upcoming %}
+        <tr class="{% if s.is_due_today %}table-warning{% endif %}">
+          <td>{{ s.due_date|date:"d.m.Y" }}</td>
+          <td class="fw-semibold">{{ s.sale.client.full_name }}</td>
+          <td>Кв. {{ s.sale.apartment.number }}</td>
+          <td>${{ s.amount|floatformat:0|intcomma }}</td>
+          <td>{% if s.is_due_today %}<span class="badge bg-warning text-dark">Сегодня</span>{% else %}<span class="badge bg-secondary">Ожидает</span>{% endif %}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="text-center py-4 text-muted">Ожидаемых платежей нет</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,175 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}{{ block_obj.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-1">
+        <li class="breadcrumb-item"><a href="{% url 'complex:list' %}">Комплекс</a></li>
+        <li class="breadcrumb-item active">{{ block_obj.name }}</li>
+      </ol>
+    </nav>
+    <h1 class="page-title">{{ block_obj.name }}</h1>
+    <p class="page-sub text-muted">{{ block_obj.complex.name }}</p>
+  </div>
+  {% if user.can_manage_complex %}
+  <div class="d-flex gap-2">
+    <a href="{% url 'complex:floor_create' block_obj.pk %}" class="btn btn-outline-gold">+ Этаж</a>
+    <a href="{% url 'complex:apartment_create' %}" class="btn btn-gold">+ Квартира</a>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Stats -->
+<div class="kpi-grid mb-4">
+  <div class="kpi-card">
+    <div class="kpi-body"><div class="kpi-value">{{ stats.total }}</div><div class="kpi-label">Всего квартир</div></div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-body"><div class="kpi-value text-success">{{ stats.free }}</div><div class="kpi-label">Свободно</div></div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-body"><div class="kpi-value text-warning">{{ stats.booked }}</div><div class="kpi-label">Забронировано</div></div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-body"><div class="kpi-value text-danger">{{ stats.sold }}</div><div class="kpi-label">Продано</div></div>
+  </div>
+</div>
+
+<!-- Apartment Map -->
+<div class="crm-card mb-4">
+  <div class="card-header-crm">
+    <span class="card-title-crm">Карта квартир</span>
+    <div class="apt-legend">
+      <span class="legend-item"><span class="legend-dot bg-success"></span>Свободна</span>
+      <span class="legend-item"><span class="legend-dot bg-warning"></span>Забронирована</span>
+      <span class="legend-item"><span class="legend-dot bg-danger"></span>Продана</span>
+      <span class="legend-item"><span class="legend-dot bg-secondary"></span>Недоступна</span>
+    </div>
+  </div>
+  <div class="apt-map" id="aptMap">
+    {% for floor in floors %}
+    <div class="apt-floor">
+      <div class="floor-label">Этаж {{ floor.number }}</div>
+      <div class="floor-apartments">
+        {% for apt in floor.apartments.all %}
+        <button class="apt-cell apt-{{ apt.status }}"
+                data-apt-id="{{ apt.pk }}"
+                data-apt-url="{% url 'complex:apartment_api' apt.pk %}"
+                title="Кв. {{ apt.number }} — {{ apt.get_status_display }}">
+          {{ apt.number }}
+        </button>
+        {% empty %}
+        <span class="text-muted small">Квартир нет</span>
+        {% endfor %}
+        {% if user.can_manage_complex %}
+        <a href="{% url 'complex:apartment_create_floor' floor.pk %}" class="apt-cell apt-add" title="Добавить квартиру">+</a>
+        {% endif %}
+      </div>
+    </div>
+    {% empty %}
+    <div class="p-4 text-muted text-center">
+      Этажей пока нет.
+      {% if user.can_manage_complex %}
+      <a href="{% url 'complex:floor_create' block_obj.pk %}">Добавить этаж</a>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Apartment detail modal -->
+<div class="modal fade" id="aptModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content crm-modal">
+      <div class="modal-header">
+        <h5 class="modal-title" id="aptModalTitle">Квартира</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="aptModalBody">
+        <div class="text-center py-3"><div class="spinner-border text-gold"></div></div>
+      </div>
+      <div class="modal-footer">
+        <a href="#" class="btn btn-gold" id="aptModalLink">Открыть карточку</a>
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Закрыть</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Construction stages -->
+{% if stages %}
+<div class="crm-card mb-4">
+  <div class="card-header-crm d-flex justify-content-between">
+    <span class="card-title-crm">Этапы строительства</span>
+    <a href="{% url 'complex:photo_add' block_obj.pk %}" class="btn btn-sm btn-outline-gold">📷 Добавить фото</a>
+  </div>
+  <div class="stages-grid">
+    {% for stage in stages %}
+    <div class="stage-card">
+      <div class="stage-header">
+        <span class="stage-name">{{ stage.get_stage_display }}</span>
+        <span class="badge bg-{% if stage.status == 'completed' %}success{% elif stage.status == 'in_progress' %}warning{% elif stage.status == 'paused' %}danger{% else %}secondary{% endif %}">
+          {{ stage.get_status_display }}
+        </span>
+      </div>
+      <div class="progress my-2" style="height: 8px;">
+        <div class="progress-bar bg-gold" style="width: {{ stage.progress }}%"></div>
+      </div>
+      <div class="d-flex justify-content-between text-muted small">
+        <span>{{ stage.progress }}% выполнено</span>
+        {% if stage.responsible %}<span>{{ stage.responsible }}</span>{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Photos -->
+{% if block_obj.photos.all %}
+<div class="crm-card mb-4">
+  <div class="card-header-crm"><span class="card-title-crm">Фотоотчёты</span></div>
+  <div class="photos-grid">
+    {% for photo in block_obj.photos.all|slice:":12" %}
+    <a href="{{ photo.photo.url }}" target="_blank" class="photo-thumb">
+      <img src="{{ photo.photo.url }}" alt="{{ photo.caption }}" />
+      {% if photo.caption %}<div class="photo-cap">{{ photo.caption }}</div>{% endif %}
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('.apt-cell[data-apt-id]').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const url = this.dataset.aptUrl;
+    const modal = new bootstrap.Modal(document.getElementById('aptModal'));
+    document.getElementById('aptModalBody').innerHTML = '<div class="text-center py-3"><div class="spinner-border text-gold"></div></div>';
+    modal.show();
+    fetch(url).then(r => r.json()).then(data => {
+      document.getElementById('aptModalTitle').textContent = 'Квартира ' + data.number;
+      document.getElementById('aptModalLink').href = data.detail_url;
+      const statusColors = {free: 'success', booked: 'warning', sold: 'danger', unavailable: 'secondary'};
+      document.getElementById('aptModalBody').innerHTML = `
+        <div class="apt-modal-info">
+          <div class="apt-modal-row"><span>Статус</span><span class="badge bg-${statusColors[data.status]}">${data.status_display}</span></div>
+          <div class="apt-modal-row"><span>Блок / Этаж</span><span>${data.block}, этаж ${data.floor}</span></div>
+          <div class="apt-modal-row"><span>Тип</span><span>${data.type}</span></div>
+          <div class="apt-modal-row"><span>Площадь</span><span>${data.area} м²</span></div>
+          <div class="apt-modal-row"><span>Цена за м²</span><span>$${parseFloat(data.price_per_sqm).toLocaleString()}</span></div>
+          <div class="apt-modal-row"><span>Общая цена</span><span class="fw-bold text-gold">$${parseFloat(data.total_price).toLocaleString()}</span></div>
+          ${data.client_name ? `<div class="apt-modal-row"><span>Клиент</span><span class="fw-semibold">${data.client_name}</span></div>` : ''}
+        </div>
+      `;
+    });
+  });
+});
+</script>
+{% endblock %}

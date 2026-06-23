@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+
+{% block title %}Отменить бронирование{% endblock %}
+
+{% block content %}
+<div class="page-header"><h1 class="page-title">Отменить бронирование</h1></div>
+<div class="form-card text-center">
+  <i class="bi bi-exclamation-triangle-fill text-warning fs-1 mb-3 d-block"></i>
+  <h5>Вы уверены?</h5>
+  <p class="text-muted">Бронирование квартиры <strong>{{ booking.apartment.number }}</strong> для клиента <strong>{{ booking.client.full_name }}</strong> будет отменено. Квартира станет свободной.</p>
+  <form method="post" class="d-flex gap-2 justify-content-center mt-4">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-danger px-4">Да, отменить</button>
+    <a href="{% url 'sales:bookings' %}" class="btn btn-outline-secondary">Оставить</a>
+  </form>
+</div>
+{% endblock %}
