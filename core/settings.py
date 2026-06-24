@@ -70,12 +70,20 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'core.wsgi.application'
 
-DATABASE_URL = os.getenv('DATABASE_URL')
 USE_SQLITE = os.getenv('USE_SQLITE', 'False') == 'True'
 
-if DATABASE_URL:
-    import dj_database_url
-    DATABASES = {'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600)}
+# Railway provides PGHOST automatically when PostgreSQL is added
+if os.getenv('PGHOST'):
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.getenv('PGDATABASE', 'railway'),
+            'USER': os.getenv('PGUSER', 'postgres'),
+            'PASSWORD': os.getenv('PGPASSWORD', ''),
+            'HOST': os.getenv('PGHOST', 'localhost'),
+            'PORT': os.getenv('PGPORT', '5432'),
+        }
+    }
 elif USE_SQLITE:
     DATABASES = {
         'default': {
