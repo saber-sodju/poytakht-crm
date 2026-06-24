@@ -70,9 +70,13 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'core.wsgi.application'
 
+DATABASE_URL = os.getenv('DATABASE_URL')
 USE_SQLITE = os.getenv('USE_SQLITE', 'False') == 'True'
 
-if USE_SQLITE:
+if DATABASE_URL:
+    import dj_database_url
+    DATABASES = {'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600)}
+elif USE_SQLITE:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
