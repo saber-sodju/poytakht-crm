@@ -559,8 +559,9 @@ body { margin: 0; font-family: 'Arial', sans-serif; background: #f0ebe0; color: 
   background: var(--dark);
   border-top: 1px solid rgba(212,175,55,0.2);
   display: flex; justify-content: space-around;
-  padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
-  z-index: 100;
+  /* env() gives correct padding in PWA/standalone mode on iPhone */
+  padding: 8px 0 max(12px, calc(8px + env(safe-area-inset-bottom)));
+  z-index: 200;
 }
 .mob-nav-item {
   display: flex; flex-direction: column; align-items: center;
@@ -568,6 +569,8 @@ body { margin: 0; font-family: 'Arial', sans-serif; background: #f0ebe0; color: 
   text-decoration: none; font-size: 10px; flex: 1;
   padding: 4px;
   transition: color 0.15s;
+  /* Ensure tap targets meet 44px minimum (Apple HIG) */
+  min-height: 44px; justify-content: center;
 }
 .mob-nav-item i { font-size: 22px; }
 .mob-nav-item:hover, .mob-nav-item.active { color: var(--gold-light); }
@@ -580,7 +583,8 @@ body { margin: 0; font-family: 'Arial', sans-serif; background: #f0ebe0; color: 
   .crm-sidebar { transform: translateX(-100%); }
   .crm-sidebar.open { transform: translateX(0); }
   .crm-topbar { left: 0; }
-  .crm-main { margin-left: 0; padding: 16px 14px 80px; }
+  /* Bottom padding accounts for mobile nav bar + iPhone home indicator */
+  .crm-main { margin-left: 0; padding: 16px 14px max(80px, calc(70px + env(safe-area-inset-bottom))); }
   .topbar-toggle { display: flex; }
   .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
   .kpi-value { font-size: 22px; }
