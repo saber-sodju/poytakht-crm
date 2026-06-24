@@ -72,16 +72,22 @@ WSGI_APPLICATION = 'core.wsgi.application'
 
 USE_SQLITE = os.getenv('USE_SQLITE', 'False') == 'True'
 
-# Railway provides PGHOST automatically when PostgreSQL is added
-if os.getenv('PGHOST'):
+_db_url = os.getenv('DATABASE_URL') or os.getenv('PGHOST') and (
+    f"postgresql://{os.getenv('PGUSER')}:{os.getenv('PGPASSWORD')}@"
+    f"{os.getenv('PGHOST')}:{os.getenv('PGPORT', '5432')}/{os.getenv('PGDATABASE', 'railway')}"
+)
+
+if _db_url:
+    from urllib.parse import urlparse as _urlparse
+    _u = _urlparse(_db_url)
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
-            'NAME': os.getenv('PGDATABASE', 'railway'),
-            'USER': os.getenv('PGUSER', 'postgres'),
-            'PASSWORD': os.getenv('PGPASSWORD', ''),
-            'HOST': os.getenv('PGHOST', 'localhost'),
-            'PORT': os.getenv('PGPORT', '5432'),
+            'NAME': _u.path.lstrip('/'),
+            'USER': _u.username,
+            'PASSWORD': _u.password,
+            'HOST': _u.hostname,
+            'PORT': _u.port or 5432,
         }
     }
 elif USE_SQLITE:
