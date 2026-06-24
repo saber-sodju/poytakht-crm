@@ -86,6 +86,34 @@
       </a>
     </div>
 
+    <div class="nav-label">Строительство</div>
+    <div class="nav-group">
+      <a href="{% url 'workers:list' %}" class="nav-item {% if request.resolver_match.app_name == 'workers' and 'salary' not in request.resolver_match.url_name and 'attendance' not in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-person-hard-hat"></i>
+        <span>Рабочие</span>
+      </a>
+      <a href="{% url 'workers:attendance' %}" class="nav-item {% if request.resolver_match.url_name == 'attendance' %}active{% endif %}">
+        <i class="bi bi-calendar-check"></i>
+        <span>Посещаемость</span>
+      </a>
+      <a href="{% url 'workers:salary' %}" class="nav-item {% if 'salary' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-cash-coin"></i>
+        <span>Зарплата</span>
+      </a>
+    </div>
+
+    <div class="nav-label">Склад</div>
+    <div class="nav-group">
+      <a href="{% url 'materials:list' %}" class="nav-item {% if request.resolver_match.app_name == 'materials' and 'supplier' not in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-boxes"></i>
+        <span>Материалы</span>
+      </a>
+      <a href="{% url 'materials:suppliers' %}" class="nav-item {% if 'supplier' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-truck"></i>
+        <span>Поставщики</span>
+      </a>
+    </div>
+
     <div class="nav-label">Аналитика</div>
     <div class="nav-group">
       <a href="{% url 'dashboard:reports' %}" class="nav-item {% if request.resolver_match.url_name == 'reports' %}active{% endif %}">

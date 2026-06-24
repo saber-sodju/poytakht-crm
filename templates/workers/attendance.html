@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+{% block title %}Посещаемость — {{ selected_date|date:"d.m.Y" }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title"><i class="bi bi-calendar-check"></i> Посещаемость</h1>
+    <p class="page-sub">{{ selected_date|date:"d F Y" }}</p>
+  </div>
+  <div class="d-flex gap-2 align-items-center">
+    <a href="?date={{ prev_date|date:'Y-m-d' }}" class="btn btn-outline-secondary">
+      <i class="bi bi-chevron-left"></i>
+    </a>
+    <input type="date" value="{{ selected_date|date:'Y-m-d' }}"
+           class="form-control" style="width:160px"
+           onchange="window.location='?date='+this.value">
+    <a href="?date={{ next_date|date:'Y-m-d' }}" class="btn btn-outline-secondary"
+       {% if next_date > today %}style="pointer-events:none;opacity:.4"{% endif %}>
+      <i class="bi bi-chevron-right"></i>
+    </a>
+  </div>
+</div>
+
+{% if rows %}
+<form method="post">
+  {% csrf_token %}
+  <input type="hidden" name="date" value="{{ selected_date|date:'Y-m-d' }}">
+
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead>
+          <tr>
+            <th>Рабочий</th>
+            <th>Должность / Бригада</th>
+            <th style="min-width:200px">Статус</th>
+            <th>Примечание</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr>
+            <td class="fw-bold">{{ row.worker.full_name }}</td>
+            <td class="text-muted small">{{ row.worker.position_name }}{% if row.worker.team %} · {{ row.worker.team_name }}{% endif %}</td>
+            <td>
+              <div class="btn-group btn-group-sm w-100" role="group">
+                {% for val, label in status_choices %}
+                <input type="radio" class="btn-check" name="status_{{ row.worker.pk }}"
+                       id="s_{{ row.worker.pk }}_{{ val }}" value="{{ val }}"
+                       {% if row.attendance and row.attendance.status == val %}checked
+                       {% elif not row.attendance and val == 'present' %}checked{% endif %}>
+                <label class="btn btn-outline-{% if val == 'present' %}success{% elif val == 'absent' %}danger{% elif val == 'half' %}warning{% else %}info{% endif %}"
+                       for="s_{{ row.worker.pk }}_{{ val }}">
+                  {% if val == 'present' %}✓{% elif val == 'absent' %}✗{% elif val == 'half' %}½{% else %}🤒{% endif %}
+                </label>
+                {% endfor %}
+              </div>
+            </td>
+            <td>
+              <input type="text" name="note_{{ row.worker.pk }}"
+                     value="{{ row.attendance.note|default:'' }}"
+                     class="form-control form-control-sm" placeholder="...">
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="card-footer d-flex justify-content-end gap-2">
+      <a href="{% url 'workers:list' %}" class="btn btn-outline-secondary">Отмена</a>
+      <button type="submit" class="btn btn-gold px-4">
+        <i class="bi bi-check-lg"></i> Сохранить посещаемость
+      </button>
+    </div>
+  </div>
+</form>
+{% else %}
+<div class="empty-state">
+  <i class="bi bi-people"></i>
+  <h5>Нет активных рабочих</h5>
+  <a href="{% url 'workers:create' %}" class="btn btn-gold">Добавить рабочего</a>
+</div>
+{% endif %}
+{% endblock %}

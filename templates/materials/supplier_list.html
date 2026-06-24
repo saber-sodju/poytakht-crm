@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block title %}Поставщики{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title"><i class="bi bi-truck"></i> Поставщики</h1>
+  <a href="{% url 'materials:supplier_create' %}" class="btn btn-gold">
+    <i class="bi bi-plus-lg"></i> Добавить
+  </a>
+</div>
+<div class="row g-3">
+  {% for s in suppliers %}
+  <div class="col-12 col-md-6 col-lg-4">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="fw-bold mb-1">{{ s.name }}</h5>
+        {% if s.contact_person %}<div class="text-muted small">{{ s.contact_person }}</div>{% endif %}
+        {% if s.phone %}
+        <a href="tel:{{ s.phone }}" class="text-decoration-none"><i class="bi bi-telephone"></i> {{ s.phone }}</a>
+        {% endif %}
+        {% if s.address %}<div class="text-muted small mt-1">{{ s.address }}</div>{% endif %}
+        <div class="mt-2 text-primary small">Материалов: {{ s.materials.count }}</div>
+      </div>
+      <div class="card-footer bg-transparent">
+        <a href="{% url 'materials:supplier_edit' s.pk %}" class="btn btn-sm btn-outline-secondary">
+          <i class="bi bi-pencil"></i> Редактировать
+        </a>
+      </div>
+    </div>
+  </div>
+  {% empty %}
+  <div class="col-12">
+    <div class="empty-state">
+      <i class="bi bi-truck"></i>
+      <h5>Поставщики не добавлены</h5>
+      <a href="{% url 'materials:supplier_create' %}" class="btn btn-gold">Добавить поставщика</a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

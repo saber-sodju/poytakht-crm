@@ -67,6 +67,105 @@ def upcoming_list(request):
 
 
 @login_required
+@staff_required
+def payment_receipt(request, pk):
+    payment = get_object_or_404(
+        Payment.objects.select_related(
+            'sale__client', 'sale__apartment__floor__block__complex', 'added_by'
+        ), pk=pk
+    )
+    rows = [
+        ('Клиент', payment.sale.client.full_name),
+        ('Телефон', payment.sale.client.phone),
+        ('Квартира', str(payment.sale.apartment)),
+        ('Комплекс', payment.sale.apartment.floor.block.complex.name),
+        ('Договор №', payment.sale.contract_number or '—'),
+        ('Принял', payment.added_by.display_name if payment.added_by else '—'),
+    ]
+    return render(request, 'payments/receipt.html', {'payment': payment, 'rows': rows})
+
+
+@login_required
+@staff_required
+def payment_receipt_pdf(request, pk):
+    from io import BytesIO
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib import colors
+    from reportlab.lib.units import cm
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    from django.http import HttpResponse
+
+    payment = get_object_or_404(
+        Payment.objects.select_related(
+            'sale__client', 'sale__apartment__floor__block__complex', 'added_by'
+        ), pk=pk
+    )
+
+    buf = BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4,
+                            leftMargin=2*cm, rightMargin=2*cm,
+                            topMargin=2*cm, bottomMargin=2*cm)
+    styles = getSampleStyleSheet()
+    elements = []
+
+    title_style = ParagraphStyle('title', parent=styles['Heading1'],
+                                 fontSize=18, spaceAfter=6, alignment=1)
+    sub_style = ParagraphStyle('sub', parent=styles['Normal'],
+                               fontSize=11, textColor=colors.grey, alignment=1)
+    normal = styles['Normal']
+    normal.fontSize = 11
+
+    elements.append(Paragraph('КВИТАНЦИЯ ОБ ОПЛАТЕ', title_style))
+    elements.append(Paragraph('Poyakht Insoot / Поытахт Иншоот', sub_style))
+    elements.append(Spacer(1, 0.5*cm))
+
+    data = [
+        ['Квитанция №', f'PMT-{payment.pk:04d}'],
+        ['Дата оплаты', payment.payment_date.strftime('%d.%m.%Y')],
+        ['Клиент', payment.sale.client.full_name],
+        ['Телефон', payment.sale.client.phone],
+        ['Квартира', str(payment.sale.apartment)],
+        ['Комплекс', payment.sale.apartment.floor.block.complex.name],
+        ['Договор №', payment.sale.contract_number or '—'],
+        ['Сумма оплаты', f'${payment.amount:,.2f}'],
+        ['Всего оплачено', f'${payment.sale.paid_amount:,.2f}'],
+        ['Остаток долга', f'${payment.sale.remaining_amount:,.2f}'],
+        ['Принял', payment.added_by.display_name if payment.added_by else '—'],
+    ]
+
+    table = Table(data, colWidths=[7*cm, 10*cm])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#f5f0e7')),
+        ('FONTSIZE', (0, 0), (-1, -1), 11),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#d4b06a')),
+        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('BACKGROUND', (0, 7), (-1, 7), colors.HexColor('#d4af37')),
+        ('FONTNAME', (0, 7), (-1, 7), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 7), (-1, 7), 13),
+        ('PADDING', (0, 0), (-1, -1), 8),
+        ('ROWBACKGROUNDS', (0, 0), (-1, -1), [colors.white, colors.HexColor('#fffaf2')]),
+    ]))
+    elements.append(table)
+    elements.append(Spacer(1, 1*cm))
+
+    if payment.note:
+        elements.append(Paragraph(f'Примечание: {payment.note}', normal))
+        elements.append(Spacer(1, 0.3*cm))
+
+    elements.append(Paragraph('Подпись: _________________', normal))
+
+    doc.build(elements)
+    buf.seek(0)
+    response = HttpResponse(buf.read(), content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="receipt-{payment.pk}.pdf"'
+    return response
+
+
+@login_required
 @finance_required
 def schedule_add(request, sale_pk):
     from apps.sales.models import Sale

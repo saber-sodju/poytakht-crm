@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+{% block title %}Материалы{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title"><i class="bi bi-boxes"></i> Склад материалов</h1>
+    <p class="page-sub">Стоимость: ${{ total_value|floatformat:0 }}
+      {% if low_count > 0 %} · <span class="text-warning">⚠ {{ low_count }} позиций мало</span>{% endif %}
+    </p>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{% url 'materials:suppliers' %}" class="btn btn-outline-secondary">
+      <i class="bi bi-truck"></i> Поставщики
+    </a>
+    <a href="{% url 'materials:movement' %}" class="btn btn-outline-primary">
+      <i class="bi bi-arrow-left-right"></i> Движение
+    </a>
+    <a href="{% url 'materials:create' %}" class="btn btn-gold">
+      <i class="bi bi-plus-lg"></i> Новый материал
+    </a>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body py-2">
+    <form method="get" class="d-flex flex-wrap gap-2 align-items-center">
+      <input type="text" name="q" value="{{ q }}" class="form-control" style="max-width:220px" placeholder="Поиск...">
+      <div class="form-check ms-2">
+        <input class="form-check-input" type="checkbox" name="low" value="1" id="lowCheck"
+               {% if low_stock %}checked{% endif %} onchange="this.form.submit()">
+        <label class="form-check-label text-warning" for="lowCheck">⚠ Только мало</label>
+      </div>
+      <button class="btn btn-primary" type="submit"><i class="bi bi-search"></i></button>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th>Материал</th>
+          <th>Ед.</th>
+          <th>На складе</th>
+          <th>Мин. запас</th>
+          <th>Цена за ед.</th>
+          <th>Стоимость</th>
+          <th>Статус</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in materials %}
+        <tr>
+          <td>
+            <a href="{% url 'materials:detail' m.pk %}" class="fw-bold text-decoration-none">{{ m.name }}</a>
+            {% if m.supplier %}<div class="text-muted small">{{ m.supplier.name }}</div>{% endif %}
+          </td>
+          <td class="text-muted">{{ m.get_unit_display }}</td>
+          <td class="fw-bold {% if m.is_out_of_stock %}text-danger{% elif m.is_low_stock %}text-warning{% endif %}">
+            {{ m.quantity|floatformat:1 }}
+          </td>
+          <td class="text-muted small">{{ m.min_quantity|floatformat:1 }}</td>
+          <td>${{ m.price_per_unit|floatformat:2 }}</td>
+          <td>${{ m.total_value|floatformat:0 }}</td>
+          <td><span class="badge bg-{{ m.status_color }}">{{ m.status_label }}</span></td>
+          <td>
+            <a href="{% url 'materials:movement_for' m.pk %}" class="btn btn-sm btn-outline-primary" title="Движение">
+              <i class="bi bi-arrow-left-right"></i>
+            </a>
+            <a href="{% url 'materials:edit' m.pk %}" class="btn btn-sm btn-outline-secondary" title="Редактировать">
+              <i class="bi bi-pencil"></i>
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="8" class="text-center text-muted py-4">
+            Материалы не найдены.
+            <a href="{% url 'materials:create' %}">Добавить первый</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

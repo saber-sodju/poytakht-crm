@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">{{ title }}</h1>
+  <a href="{% url 'materials:suppliers' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> Назад
+  </a>
+</div>
+<div class="card" style="max-width:500px">
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <div class="row g-3">
+        <div class="col-12">
+          <label class="form-label fw-bold">Название *</label>
+          <input type="text" name="name" value="{{ supplier.name|default:'' }}"
+                 class="form-control" required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Телефон</label>
+          <input type="tel" name="phone" value="{{ supplier.phone|default:'' }}" class="form-control">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Контактное лицо</label>
+          <input type="text" name="contact_person" value="{{ supplier.contact_person|default:'' }}" class="form-control">
+        </div>
+        <div class="col-12">
+          <label class="form-label">Адрес</label>
+          <textarea name="address" class="form-control" rows="2">{{ supplier.address|default:'' }}</textarea>
+        </div>
+        <div class="col-12">
+          <label class="form-label">Примечание</label>
+          <textarea name="note" class="form-control" rows="2">{{ supplier.note|default:'' }}</textarea>
+        </div>
+        <div class="col-12 d-flex gap-2 justify-content-end">
+          <a href="{% url 'materials:suppliers' %}" class="btn btn-outline-secondary">Отмена</a>
+          <button type="submit" class="btn btn-gold px-4">Сохранить</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

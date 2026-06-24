@@ -9,4 +9,6 @@ urlpatterns = [
     path('overdue/', views.overdue_list, name='overdue'),
     path('upcoming/', views.upcoming_list, name='upcoming'),
     path('schedule/<int:sale_pk>/add/', views.schedule_add, name='schedule_add'),
+    path('<int:pk>/receipt/', views.payment_receipt, name='receipt'),
+    path('<int:pk>/receipt/pdf/', views.payment_receipt_pdf, name='receipt_pdf'),
 ]

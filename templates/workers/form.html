@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">{{ title }}</h1>
+  <a href="{% url 'workers:list' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> Назад
+  </a>
+</div>
+
+<div class="card" style="max-width:700px">
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <div class="row g-3">
+        <div class="col-12">
+          <label class="form-label fw-bold">ФИО *</label>
+          <input type="text" name="full_name" value="{{ worker.full_name|default:'' }}"
+                 class="form-control form-control-lg" placeholder="Иванов Иван Иванович" required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Телефон</label>
+          <input type="tel" name="phone" value="{{ worker.phone|default:'' }}" class="form-control" placeholder="+992">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Должность</label>
+          <select name="position" class="form-select">
+            <option value="">— Не указана —</option>
+            {% for p in positions %}
+            <option value="{{ p.pk }}" {% if worker.position_id == p.pk %}selected{% endif %}>{{ p.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Бригада</label>
+          <select name="team" class="form-select">
+            <option value="">— Без бригады —</option>
+            {% for t in teams %}
+            <option value="{{ t.pk }}" {% if worker.team_id == t.pk %}selected{% endif %}>{{ t.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Дата найма</label>
+          <input type="date" name="hired_date"
+                 value="{{ worker.hired_date|date:'Y-m-d'|default:'' }}" class="form-control">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Тип зарплаты</label>
+          <select name="salary_type" class="form-select">
+            <option value="daily" {% if worker.salary_type == 'daily' or not worker %}selected{% endif %}>Поденно</option>
+            <option value="monthly" {% if worker.salary_type == 'monthly' %}selected{% endif %}>Ежемесячно</option>
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Ставка ($)</label>
+          <input type="number" name="salary_rate" value="{{ worker.salary_rate|default:'0' }}"
+                 class="form-control" min="0" step="0.01" placeholder="0.00">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Паспорт</label>
+          <input type="text" name="passport_number" value="{{ worker.passport_number|default:'' }}"
+                 class="form-control" placeholder="AA 1234567">
+        </div>
+        <div class="col-12">
+          <label class="form-label">Адрес</label>
+          <input type="text" name="address" value="{{ worker.address|default:'' }}" class="form-control">
+        </div>
+        {% if worker %}
+        <div class="col-12">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="is_active" id="is_active"
+                   {% if worker.is_active %}checked{% endif %}>
+            <label class="form-check-label" for="is_active">Активный (работает)</label>
+          </div>
+        </div>
+        {% endif %}
+        <div class="col-12">
+          <label class="form-label">Примечание</label>
+          <textarea name="note" class="form-control" rows="2">{{ worker.note|default:'' }}</textarea>
+        </div>
+        <div class="col-12 d-flex gap-2 justify-content-end">
+          <a href="{% url 'workers:list' %}" class="btn btn-outline-secondary">Отмена</a>
+          <button type="submit" class="btn btn-gold px-4">
+            <i class="bi bi-check-lg"></i> Сохранить
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

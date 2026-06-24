@@ -619,3 +619,46 @@ a.text-gold:hover { color: var(--gold) !important; }
 .breadcrumb-item a { color: var(--gold-dark); }
 .table-danger { background: rgba(220,53,69,0.07) !important; }
 .table-warning { background: rgba(255,193,7,0.1) !important; }
+
+/* ---- EMPTY STATE (h5 variant) ---- */
+.empty-state h5 { font-family: Georgia, serif; color: var(--dark); margin-bottom: 16px; }
+
+/* ---- KPI VALUE ---- */
+.kpi-value { font-size: 26px; font-weight: 800; font-family: Georgia, serif; line-height: 1.1; }
+.kpi-label { font-size: 11px; color: #8b7355; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+
+/* ---- PAGE HEADER ---- */
+.page-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  flex-wrap: wrap; gap: 12px; margin-bottom: 20px;
+}
+.page-title { font-size: 26px; font-weight: 800; font-family: Georgia, serif; color: var(--dark); margin: 0; }
+.page-sub { color: #8b7355; font-size: 14px; margin: 4px 0 0; }
+
+/* ---- WORKER STATUS BADGE sizes ---- */
+.btn-group-sm .btn { min-width: 38px; }
+
+/* ---- ATTENDANCE TABLE mobile ---- */
+@media (max-width: 767px) {
+  .btn-group .btn { padding: 4px 6px; font-size: 13px; }
+  .table-responsive table td, .table-responsive table th { padding: 8px 10px; }
+}
+
+/* ---- MOBILE: show workers/materials in bottom nav ---- */
+@media (max-width: 767px) {
+  .mobile-bottom-nav .mob-nav-item { font-size: 9px; }
+  .mobile-bottom-nav .mob-nav-item i { font-size: 20px; }
+}
+
+/* ---- CARD improvements ---- */
+.card { border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); background: #fff; }
+.card-header { background: rgba(245,240,231,0.6); border-bottom: 1px solid var(--border); font-weight: 600; font-size: 14px; padding: 12px 16px; }
+.card-footer { border-top: 1px solid var(--border); padding: 10px 16px; }
+
+/* ---- PRINT styles for receipts ---- */
+@media print {
+  .crm-sidebar, .crm-topbar, .mobile-bottom-nav, .no-print { display: none !important; }
+  .crm-main { margin: 0 !important; padding: 0 !important; }
+  body { background: #fff; }
+}
+

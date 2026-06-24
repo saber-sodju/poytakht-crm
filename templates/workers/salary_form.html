@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+{% block title %}Начислить зарплату{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">Начислить зарплату</h1>
+  <a href="{% url 'workers:salary' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> Назад
+  </a>
+</div>
+
+<div class="card" style="max-width:600px">
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <div class="row g-3">
+        <div class="col-12">
+          <label class="form-label fw-bold">Рабочий *</label>
+          <select name="worker" id="workerSelect" class="form-select form-select-lg" required
+                  onchange="updateRate()">
+            <option value="">— Выберите рабочего —</option>
+            {% for w in workers %}
+            <option value="{{ w.pk }}"
+                    data-rate="{{ w.salary_rate }}"
+                    data-type="{{ w.salary_type }}"
+                    {% if selected_worker and selected_worker.pk == w.pk %}selected{% endif %}>
+              {{ w.full_name }} ({{ w.get_salary_type_display }} ${{ w.salary_rate }})
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Начало периода</label>
+          <input type="date" name="period_start" value="{{ period_start|date:'Y-m-d' }}"
+                 class="form-control" required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Конец периода</label>
+          <input type="date" name="period_end" value="{{ period_end|date:'Y-m-d' }}"
+                 class="form-control" required>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Отработано дней</label>
+          <input type="number" name="days_worked" id="daysWorked" value="0"
+                 class="form-control" min="0" oninput="calcBase()">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Базовая сумма ($)</label>
+          <input type="number" name="base_amount" id="baseAmount" value="0"
+                 class="form-control" min="0" step="0.01" oninput="calcTotal()">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Бонус ($)</label>
+          <input type="number" name="bonus" id="bonus" value="0"
+                 class="form-control" min="0" step="0.01" oninput="calcTotal()">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Штраф ($)</label>
+          <input type="number" name="penalty" id="penalty" value="0"
+                 class="form-control" min="0" step="0.01" oninput="calcTotal()">
+        </div>
+        <div class="col-md-8">
+          <label class="form-label fw-bold">ИТОГО ($)</label>
+          <div class="form-control bg-light fw-bold fs-4 text-gold" id="totalDisplay">$0.00</div>
+        </div>
+        <div class="col-12">
+          <label class="form-label">Примечание</label>
+          <textarea name="note" class="form-control" rows="2"></textarea>
+        </div>
+        <div class="col-12 d-flex gap-2 justify-content-end">
+          <a href="{% url 'workers:salary' %}" class="btn btn-outline-secondary">Отмена</a>
+          <button type="submit" class="btn btn-gold px-4">
+            <i class="bi bi-check-lg"></i> Создать ведомость
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+function updateRate() {
+  const sel = document.getElementById('workerSelect');
+  const opt = sel.options[sel.selectedIndex];
+  window._workerRate = parseFloat(opt.dataset.rate) || 0;
+  window._workerType = opt.dataset.type || 'daily';
+  calcBase();
+}
+function calcBase() {
+  if (window._workerType === 'daily') {
+    const days = parseFloat(document.getElementById('daysWorked').value) || 0;
+    document.getElementById('baseAmount').value = (days * (window._workerRate || 0)).toFixed(2);
+  }
+  calcTotal();
+}
+function calcTotal() {
+  const base = parseFloat(document.getElementById('baseAmount').value) || 0;
+  const bonus = parseFloat(document.getElementById('bonus').value) || 0;
+  const penalty = parseFloat(document.getElementById('penalty').value) || 0;
+  document.getElementById('totalDisplay').textContent = '$' + (base + bonus - penalty).toFixed(2);
+}
+window._workerRate = 0;
+window._workerType = 'daily';
+</script>
+{% endblock %}

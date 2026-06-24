@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+{% block title %}Рабочие{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title"><i class="bi bi-person-hard-hat"></i> Рабочие</h1>
+    <p class="page-sub">Всего активных: {{ total }}</p>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{% url 'workers:attendance' %}" class="btn btn-outline-primary">
+      <i class="bi bi-calendar-check"></i> Посещаемость
+    </a>
+    <a href="{% url 'workers:teams' %}" class="btn btn-outline-secondary">
+      <i class="bi bi-people"></i> Бригады
+    </a>
+    <a href="{% url 'workers:salary' %}" class="btn btn-outline-warning">
+      <i class="bi bi-cash"></i> Зарплата
+    </a>
+    <a href="{% url 'workers:create' %}" class="btn btn-gold">
+      <i class="bi bi-plus-lg"></i> Добавить
+    </a>
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-3">
+  <div class="card-body py-2">
+    <form method="get" class="d-flex flex-wrap gap-2 align-items-center">
+      <input type="text" name="q" value="{{ q }}" class="form-control" style="max-width:220px" placeholder="Поиск по имени, телефону">
+      <select name="team" class="form-select" style="max-width:180px">
+        <option value="">Все бригады</option>
+        {% for t in teams %}
+        <option value="{{ t.pk }}" {% if team_id == t.pk|stringformat:"s" %}selected{% endif %}>{{ t.name }}</option>
+        {% endfor %}
+      </select>
+      <select name="active" class="form-select" style="max-width:150px">
+        <option value="1" {% if active_only != '0' %}selected{% endif %}>Активные</option>
+        <option value="0" {% if active_only == '0' %}selected{% endif %}>Все</option>
+      </select>
+      <button class="btn btn-primary" type="submit"><i class="bi bi-search"></i></button>
+    </form>
+  </div>
+</div>
+
+<!-- Workers grid (mobile cards) -->
+<div class="row g-3">
+  {% for w in workers %}
+  <div class="col-12 col-md-6 col-lg-4">
+    <div class="card h-100 {% if not w.is_active %}opacity-50{% endif %}">
+      <div class="card-body">
+        <div class="d-flex align-items-start justify-content-between">
+          <div>
+            <div class="fw-bold fs-6">{{ w.full_name }}</div>
+            <div class="text-muted small">{{ w.position_name }} {% if w.team %}· {{ w.team_name }}{% endif %}</div>
+          </div>
+          <span class="badge bg-{% if w.is_active %}success{% else %}secondary{% endif %}">
+            {% if w.is_active %}Активный{% else %}Уволен{% endif %}
+          </span>
+        </div>
+        {% if w.phone %}
+        <div class="mt-2">
+          <a href="tel:{{ w.phone }}" class="text-decoration-none">
+            <i class="bi bi-telephone"></i> {{ w.phone }}
+          </a>
+        </div>
+        {% endif %}
+        <div class="mt-2 text-muted small">
+          <i class="bi bi-currency-dollar"></i>
+          {{ w.salary_rate }} / {{ w.get_salary_type_display }}
+        </div>
+      </div>
+      <div class="card-footer bg-transparent d-flex gap-2">
+        <a href="{% url 'workers:detail' w.pk %}" class="btn btn-sm btn-outline-primary flex-grow-1">
+          <i class="bi bi-eye"></i> Просмотр
+        </a>
+        <a href="{% url 'workers:edit' w.pk %}" class="btn btn-sm btn-outline-secondary">
+          <i class="bi bi-pencil"></i>
+        </a>
+        <a href="{% url 'workers:salary_create_for' w.pk %}" class="btn btn-sm btn-outline-warning">
+          <i class="bi bi-cash"></i>
+        </a>
+      </div>
+    </div>
+  </div>
+  {% empty %}
+  <div class="col-12">
+    <div class="empty-state">
+      <i class="bi bi-person-hard-hat"></i>
+      <h5>Рабочие не найдены</h5>
+      <a href="{% url 'workers:create' %}" class="btn btn-gold">Добавить первого рабочего</a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

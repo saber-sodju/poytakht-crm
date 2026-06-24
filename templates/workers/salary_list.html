@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+{% block title %}Зарплаты{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title"><i class="bi bi-cash-coin"></i> Ведомости зарплат</h1>
+    {% if unpaid_total > 0 %}
+    <p class="page-sub text-warning">К выплате: ${{ unpaid_total|floatformat:2 }}</p>
+    {% endif %}
+  </div>
+  <a href="{% url 'workers:salary_create' %}" class="btn btn-gold">
+    <i class="bi bi-plus-lg"></i> Начислить зарплату
+  </a>
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th>Рабочий</th>
+          <th>Период</th>
+          <th>Дней</th>
+          <th>База</th>
+          <th>Бонус</th>
+          <th>Штраф</th>
+          <th class="fw-bold">Итого</th>
+          <th>Статус</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for sp in payments %}
+        <tr>
+          <td class="fw-bold">{{ sp.worker.full_name }}</td>
+          <td class="small">{{ sp.period_start|date:"d.m" }}–{{ sp.period_end|date:"d.m.Y" }}</td>
+          <td>{{ sp.days_worked }}</td>
+          <td>${{ sp.base_amount|floatformat:0 }}</td>
+          <td class="text-success">{% if sp.bonus > 0 %}+${{ sp.bonus|floatformat:0 }}{% else %}—{% endif %}</td>
+          <td class="text-danger">{% if sp.penalty > 0 %}-${{ sp.penalty|floatformat:0 }}{% else %}—{% endif %}</td>
+          <td class="fw-bold">${{ sp.total_amount|floatformat:2 }}</td>
+          <td>
+            {% if sp.is_paid %}
+            <span class="badge bg-success">Выплачено {{ sp.paid_date|date:"d.m" }}</span>
+            {% else %}
+            <span class="badge bg-warning text-dark">Ожидает</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if not sp.is_paid %}
+            <form method="post" action="{% url 'workers:salary_paid' sp.pk %}">
+              {% csrf_token %}
+              <button class="btn btn-sm btn-success" onclick="return confirm('Отметить как выплаченную?')">
+                <i class="bi bi-check-lg"></i> Выплатить
+              </button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="9" class="text-center text-muted py-4">Ведомостей нет</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block title %}Бригады{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title"><i class="bi bi-people-fill"></i> Бригады</h1>
+  <a href="{% url 'workers:team_create' %}" class="btn btn-gold">
+    <i class="bi bi-plus-lg"></i> Новая бригада
+  </a>
+</div>
+<div class="row g-3">
+  {% for team in teams %}
+  <div class="col-12 col-md-6 col-lg-4">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="fw-bold mb-1">{{ team.name }}</h5>
+        {% if team.complex %}<div class="text-muted small mb-2">{{ team.complex.name }}</div>{% endif %}
+        <div class="text-primary fw-bold">{{ team.active_count }} рабочих</div>
+        {% if team.note %}<div class="text-muted small mt-2">{{ team.note }}</div>{% endif %}
+      </div>
+      <div class="card-footer bg-transparent">
+        <a href="{% url 'workers:list' %}?team={{ team.pk }}" class="btn btn-sm btn-outline-primary">
+          <i class="bi bi-eye"></i> Рабочие бригады
+        </a>
+      </div>
+    </div>
+  </div>
+  {% empty %}
+  <div class="col-12">
+    <div class="empty-state">
+      <i class="bi bi-people"></i>
+      <h5>Бригады не созданы</h5>
+      <a href="{% url 'workers:team_create' %}" class="btn btn-gold">Создать бригаду</a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

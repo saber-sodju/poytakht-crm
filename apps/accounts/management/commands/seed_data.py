@@ -21,6 +21,8 @@ class Command(BaseCommand):
         self._create_leads()
         self._create_sales()
         self._create_expenses()
+        self._create_workers()
+        self._create_materials()
 
         self.stdout.write(self.style.SUCCESS('[OK] Testovye dannye sozdany!'))
         self.stdout.write('')
@@ -272,3 +274,122 @@ class Command(BaseCommand):
                 description=desc, added_by=accountant,
             )
         self.stdout.write('  Created 8 expenses')
+
+    def _create_workers(self):
+        from apps.workers.models import Position, Team, Worker, Attendance, SalaryPayment
+        from apps.complex.models import Complex
+        from apps.accounts.models import CustomUser
+
+        if Worker.objects.exists():
+            return
+
+        cx = Complex.objects.first()
+        admin = CustomUser.objects.filter(role='admin').first() or CustomUser.objects.first()
+        today = date.today()
+
+        # Positions
+        positions_data = ['Прораб', 'Каменщик', 'Бетонщик', 'Сварщик',
+                          'Электрик', 'Плиточник', 'Разнорабочий']
+        positions = {p: Position.objects.get_or_create(name=p)[0] for p in positions_data}
+
+        # Teams
+        team_a = Team.objects.create(name='Бригада А', complex=cx)
+        team_b = Team.objects.create(name='Бригада Б', complex=cx)
+
+        workers_data = [
+            ('Мирзоев Акбар Холович', '+992911001001', 'Прораб', team_a, 'monthly', 800),
+            ('Рахимов Баходур Акбарович', '+992911001002', 'Каменщик', team_a, 'daily', 30),
+            ('Назаров Шохрух Бекович', '+992911001003', 'Каменщик', team_a, 'daily', 28),
+            ('Алиев Комил Рустамович', '+992911001004', 'Бетонщик', team_a, 'daily', 32),
+            ('Юсупов Фирдавс Умарович', '+992911001005', 'Сварщик', team_b, 'daily', 35),
+            ('Хасанов Пулод Шамсович', '+992911001006', 'Электрик', team_b, 'monthly', 600),
+            ('Каримов Зафар Бахтиёрович', '+992911001007', 'Плиточник', team_b, 'daily', 30),
+            ('Турсунов Даврон Сайдалиевич', '+992911001008', 'Разнорабочий', team_b, 'daily', 20),
+        ]
+
+        workers = []
+        for fname, phone, pos_name, team, s_type, rate in workers_data:
+            w = Worker.objects.create(
+                full_name=fname, phone=phone,
+                position=positions[pos_name], team=team,
+                salary_type=s_type, salary_rate=Decimal(str(rate)),
+                hired_date=today - timedelta(days=random.randint(60, 365)),
+                added_by=admin,
+            )
+            workers.append(w)
+
+        # Attendance for last 7 days
+        statuses = ['present', 'present', 'present', 'present', 'half', 'absent', 'present']
+        for w in workers:
+            for i, days_back in enumerate(range(6, -1, -1)):
+                d = today - timedelta(days=days_back)
+                Attendance.objects.create(
+                    worker=w, date=d,
+                    status=statuses[i % len(statuses)],
+                    recorded_by=admin,
+                )
+
+        self.stdout.write(f'  Created {len(workers)} workers with attendance')
+
+    def _create_materials(self):
+        from apps.materials.models import Supplier, Material, MaterialMovement
+        from apps.complex.models import Block
+        from apps.accounts.models import CustomUser
+
+        if Material.objects.exists():
+            return
+
+        admin = CustomUser.objects.filter(role='admin').first() or CustomUser.objects.first()
+        block = Block.objects.first()
+        today = date.today()
+
+        # Suppliers
+        sup1 = Supplier.objects.create(
+            name='ТаджикСтройМат', phone='+992372001111',
+            contact_person='Назаров Комил', address='г. Душанбе, ул. Ленина 10'
+        )
+        sup2 = Supplier.objects.create(
+            name='Стройбаза Восток', phone='+992372002222',
+            contact_person='Рахимов Шухрат', address='г. Душанбе, ул. Айни 25'
+        )
+
+        materials_data = [
+            ('Цемент М400', 'bag', sup1, 50, 500, 8.50),
+            ('Арматура 12мм', 'ton', sup1, 2, 20, 850),
+            ('Кирпич красный', 'piece', sup2, 500, 5000, 0.25),
+            ('Песок строительный', 'm3', sup2, 5, 50, 25),
+            ('Щебень 20-40мм', 'm3', sup1, 5, 30, 35),
+            ('Фанера 18мм', 'piece', sup2, 10, 50, 18),
+            ('Проволока вязальная', 'kg', sup1, 50, 200, 1.20),
+            ('Гвозди 80мм', 'kg', sup1, 20, 100, 1.50),
+        ]
+
+        for name, unit, supplier, min_qty, qty, price in materials_data:
+            m = Material.objects.create(
+                name=name, unit=unit, supplier=supplier,
+                min_quantity=Decimal(str(min_qty)),
+                price_per_unit=Decimal(str(price)),
+            )
+            # Add incoming movement
+            mv = MaterialMovement(
+                material=m, direction='in',
+                quantity=Decimal(str(qty)),
+                price_per_unit=Decimal(str(price)),
+                supplier=supplier, block=block,
+                date=today - timedelta(days=random.randint(5, 30)),
+                note='Начальный остаток', added_by=admin,
+            )
+            mv.save()
+
+        # Some outgoing movements
+        cement = Material.objects.filter(name='Цемент М400').first()
+        if cement:
+            mv = MaterialMovement(
+                material=cement, direction='out',
+                quantity=Decimal('150'), price_per_unit=cement.price_per_unit,
+                block=block, date=today - timedelta(days=3),
+                note='Использовано для кладки', added_by=admin,
+            )
+            mv.save()
+
+        self.stdout.write('  Created materials and suppliers')

@@ -41,7 +41,12 @@
           <td><a href="{% url 'complex:apartment_detail' p.sale.apartment.pk %}">Кв. {{ p.sale.apartment.number }}</a></td>
           <td class="fw-semibold text-success">${{ p.amount|floatformat:0|intcomma }}</td>
           <td class="text-muted small">{{ p.added_by.display_name|default:"—" }}</td>
-          <td>{% if p.receipt %}<a href="{{ p.receipt.url }}" target="_blank" class="btn btn-xs btn-outline-secondary">📄</a>{% else %}—{% endif %}</td>
+          <td>
+            <a href="{% url 'payments:receipt' p.pk %}" class="btn btn-xs btn-outline-primary" title="Квитанция">
+              <i class="bi bi-receipt"></i>
+            </a>
+            {% if p.receipt %}<a href="{{ p.receipt.url }}" target="_blank" class="btn btn-xs btn-outline-secondary">📄</a>{% endif %}
+          </td>
         </tr>
         {% empty %}
         <tr><td colspan="6" class="text-center py-4 text-muted">Платежей нет</td></tr>

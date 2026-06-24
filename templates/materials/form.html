@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">{{ title }}</h1>
+  <a href="{% url 'materials:list' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> Назад
+  </a>
+</div>
+<div class="card" style="max-width:600px">
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <div class="row g-3">
+        <div class="col-12">
+          <label class="form-label fw-bold">Название *</label>
+          <input type="text" name="name" value="{{ material.name|default:'' }}"
+                 class="form-control form-control-lg" placeholder="Цемент М400" required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Единица измерения</label>
+          <select name="unit" class="form-select">
+            {% for val, label in unit_choices %}
+            <option value="{{ val }}" {% if material.unit == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Цена за ед. ($)</label>
+          <input type="number" name="price_per_unit" value="{{ material.price_per_unit|default:'0' }}"
+                 class="form-control" min="0" step="0.01">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Мин. запас (для предупреждения)</label>
+          <input type="number" name="min_quantity" value="{{ material.min_quantity|default:'0' }}"
+                 class="form-control" min="0" step="0.1">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Основной поставщик</label>
+          <select name="supplier" class="form-select">
+            <option value="">— Не указан —</option>
+            {% for s in suppliers %}
+            <option value="{{ s.pk }}" {% if material.supplier_id == s.pk %}selected{% endif %}>{{ s.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12">
+          <label class="form-label">Примечание</label>
+          <textarea name="note" class="form-control" rows="2">{{ material.note|default:'' }}</textarea>
+        </div>
+        <div class="col-12 d-flex gap-2 justify-content-end">
+          <a href="{% url 'materials:list' %}" class="btn btn-outline-secondary">Отмена</a>
+          <button type="submit" class="btn btn-gold px-4">
+            <i class="bi bi-check-lg"></i> Сохранить
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
