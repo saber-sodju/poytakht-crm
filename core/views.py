@@ -1,5 +1,7 @@
-from django.shortcuts import render
+import os
+from django.shortcuts import render, redirect
 from django.views.decorators.cache import never_cache
+from django.templatetags.static import static as static_url
 
 
 @never_cache
@@ -14,7 +16,7 @@ def service_worker(request):
 @never_cache
 def pwa_manifest(request):
     """Serve manifest.json with correct headers."""
-    import json, os
+    import json
     from django.conf import settings
     from django.http import JsonResponse
 
@@ -23,7 +25,6 @@ def pwa_manifest(request):
         with open(manifest_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
     except FileNotFoundError:
-        # Fallback: read from STATICFILES_DIRS
         for d in settings.STATICFILES_DIRS:
             p = os.path.join(d, 'pwa', 'manifest.json')
             if os.path.exists(p):
@@ -34,3 +35,11 @@ def pwa_manifest(request):
             data = {}
 
     return JsonResponse(data, content_type='application/manifest+json')
+
+
+def apple_touch_icon(request):
+    """
+    Serve apple-touch-icon.png from the root path /apple-touch-icon.png.
+    Safari automatically looks for it here when no <link> is found or as a fallback.
+    """
+    return redirect(static_url('pwa/icons/apple-touch-icon.png'), permanent=False)

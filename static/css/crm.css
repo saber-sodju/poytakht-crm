@@ -582,6 +582,8 @@ body { margin: 0; font-family: 'Arial', sans-serif; background: #f0ebe0; color: 
 @media (max-width: 767px) {
   .crm-sidebar { transform: translateX(-100%); }
   .crm-sidebar.open { transform: translateX(0); }
+  /* Sidebar needs bottom padding so the logout button clears the mobile bottom nav */
+  .crm-sidebar { padding-bottom: max(72px, calc(60px + env(safe-area-inset-bottom))); }
   .crm-topbar { left: 0; }
   /* Bottom padding accounts for mobile nav bar + iPhone home indicator */
   .crm-main { margin-left: 0; padding: 16px 14px max(80px, calc(70px + env(safe-area-inset-bottom))); }

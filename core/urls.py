@@ -8,6 +8,9 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('sw.js', core_views.service_worker, name='service_worker'),
     path('manifest.json', core_views.pwa_manifest, name='pwa_manifest'),
+    # Apple looks for this at the root automatically (fallback discovery)
+    path('apple-touch-icon.png', core_views.apple_touch_icon),
+    path('apple-touch-icon-precomposed.png', core_views.apple_touch_icon),
     path('', include('apps.dashboard.urls')),
     path('auth/', include('apps.accounts.urls')),
     path('complex/', include('apps.complex.urls')),
