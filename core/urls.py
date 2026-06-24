@@ -2,9 +2,12 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from . import views as core_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('sw.js', core_views.service_worker, name='service_worker'),
+    path('manifest.json', core_views.pwa_manifest, name='pwa_manifest'),
     path('', include('apps.dashboard.urls')),
     path('auth/', include('apps.accounts.urls')),
     path('complex/', include('apps.complex.urls')),

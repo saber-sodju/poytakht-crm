@@ -2,11 +2,28 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>{% block title %}Poytakht CRM{% endblock %} | Пойтахт Иншоот</title>
+
+  {% load static %}
+
+  <!-- ── PWA ───────────────────────────────────────────────────────── -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#0f172a" />
+
+  <!-- Apple / Safari PWA -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Poytakht" />
+  <link rel="apple-touch-icon" href="{% static 'pwa/icons/icon-192.png' %}" />
+  <link rel="apple-touch-icon" sizes="512x512" href="{% static 'pwa/icons/icon-512.png' %}" />
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="192x192" href="{% static 'pwa/icons/icon-192.png' %}" />
+
+  <!-- ── Styles ────────────────────────────────────────────────────── -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
-  {% load static %}
   <link rel="stylesheet" href="{% static 'css/crm.css' %}" />
 </head>
 <body>
@@ -245,8 +262,23 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
-{% load static %}
 <script src="{% static 'js/crm.js' %}"></script>
 {% block extra_js %}{% endblock %}
+
+<!-- ── PWA Service Worker registration ──────────────────────────── -->
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('/sw.js', { scope: '/' })
+      .then(function (reg) {
+        /* SW registered — silent in production */
+      })
+      .catch(function (err) {
+        /* SW failed to register — app still works normally */
+        console.warn('SW registration failed:', err);
+      });
+  });
+}
+</script>
 </body>
 </html>
