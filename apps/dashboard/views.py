@@ -39,14 +39,13 @@ def dashboard_index(request):
 
     month_profit = month_income - month_expenses
 
-    # Total debt — single aggregate instead of loop
-    sales_agg = Sale.objects.aggregate(
+    # Total debt
+    sales_totals = Sale.objects.aggregate(
         total_price=Sum('total_price'),
         total_paid=Sum('paid_amount'),
-        count_debt=Count('id', filter=Q(paid_amount__lt=F('total_price')))
     )
-    total_debt = max(0, (sales_agg['total_price'] or 0) - (sales_agg['total_paid'] or 0))
-    clients_with_debt = sales_agg['count_debt'] or 0
+    total_debt = max(0, (sales_totals['total_price'] or 0) - (sales_totals['total_paid'] or 0))
+    clients_with_debt = Sale.objects.filter(paid_amount__lt=F('total_price')).count()
 
     # Schedule stats
     overdue = PaymentSchedule.objects.filter(is_paid=False, due_date__lt=today).count()
