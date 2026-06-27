@@ -41,113 +41,110 @@
 
   <nav class="sidebar-nav">
     {% if user.is_client_role %}
-    <div class="nav-group">
-      <a href="{% url 'dashboard:index' %}" class="nav-item active">
-        <i class="bi bi-house-heart"></i>
-        <span>Мой кабинет</span>
-      </a>
-    </div>
+
+    <a href="{% url 'dashboard:index' %}" class="nav-item active">
+      <i class="bi bi-house-heart"></i><span>Мой кабинет</span>
+    </a>
+
     {% else %}
-    <div class="nav-group">
-      <a href="{% url 'dashboard:index' %}" class="nav-item {% if request.resolver_match.app_name == 'dashboard' and request.resolver_match.url_name == 'index' %}active{% endif %}">
-        <i class="bi bi-speedometer2"></i>
-        <span>Дашборд</span>
-      </a>
+    {% with app=request.resolver_match.app_name uname=request.resolver_match.url_name %}
+
+    <!-- Home -->
+    <a href="{% url 'dashboard:index' %}"
+       class="nav-item {% if app == 'dashboard' and uname == 'index' %}active{% endif %}">
+      <i class="bi bi-speedometer2"></i><span>Главная</span>
+    </a>
+
+    <div class="nav-divider"></div>
+
+    <!-- Квартиры -->
+    <div class="nav-collapse {% if app == 'complex' %}open{% endif %}">
+      <div class="nav-collapse-header">
+        <span class="nav-collapse-label"><i class="bi bi-buildings"></i>Квартиры</span>
+        <i class="bi bi-chevron-right nav-chevron"></i>
+      </div>
+      <div class="nav-collapse-body">
+        <a href="{% url 'complex:list' %}"
+           class="nav-sub {% if app == 'complex' %}active{% endif %}">Жилой комплекс</a>
+      </div>
     </div>
 
-    <div class="nav-label">Объект</div>
-    <div class="nav-group">
-      <a href="{% url 'complex:list' %}" class="nav-item {% if request.resolver_match.app_name == 'complex' %}active{% endif %}">
-        <i class="bi bi-buildings"></i>
-        <span>Комплекс</span>
-      </a>
+    <!-- Клиенты -->
+    <div class="nav-collapse {% if app == 'clients' or app == 'sales' %}open{% endif %}">
+      <div class="nav-collapse-header">
+        <span class="nav-collapse-label"><i class="bi bi-people"></i>Клиенты</span>
+        <i class="bi bi-chevron-right nav-chevron"></i>
+      </div>
+      <div class="nav-collapse-body">
+        <a href="{% url 'clients:list' %}"
+           class="nav-sub {% if app == 'clients' and 'lead' not in uname %}active{% endif %}">Все клиенты</a>
+        <a href="{% url 'clients:leads' %}"
+           class="nav-sub {% if 'lead' in uname %}active{% endif %}">Потенц. покупатели</a>
+        <a href="{% url 'sales:list' %}"
+           class="nav-sub {% if app == 'sales' and 'booking' not in uname %}active{% endif %}">Продажи</a>
+        <a href="{% url 'sales:bookings' %}"
+           class="nav-sub {% if 'booking' in uname %}active{% endif %}">Бронирования</a>
+      </div>
     </div>
 
-    <div class="nav-label">Клиенты</div>
-    <div class="nav-group">
-      <a href="{% url 'clients:list' %}" class="nav-item {% if request.resolver_match.app_name == 'clients' and 'lead' not in request.resolver_match.url_name %}active{% endif %}">
-        <i class="bi bi-people"></i>
-        <span>Клиенты</span>
-      </a>
-      <a href="{% url 'clients:leads' %}" class="nav-item {% if 'lead' in request.resolver_match.url_name %}active{% endif %}">
-        <i class="bi bi-funnel"></i>
-        <span>Лиды / CRM</span>
-      </a>
+    <!-- Финансы -->
+    <div class="nav-collapse {% if app == 'payments' or app == 'expenses' %}open{% endif %}">
+      <div class="nav-collapse-header">
+        <span class="nav-collapse-label"><i class="bi bi-cash-stack"></i>Финансы</span>
+        <i class="bi bi-chevron-right nav-chevron"></i>
+      </div>
+      <div class="nav-collapse-body">
+        <a href="{% url 'payments:list' %}"
+           class="nav-sub {% if app == 'payments' and uname == 'list' %}active{% endif %}">Платежи</a>
+        <a href="{% url 'payments:overdue' %}"
+           class="nav-sub {% if uname == 'overdue' %}active{% endif %}">Должники</a>
+        <a href="{% url 'expenses:list' %}"
+           class="nav-sub {% if app == 'expenses' %}active{% endif %}">Расходы</a>
+      </div>
     </div>
 
-    <div class="nav-label">Продажи</div>
-    <div class="nav-group">
-      <a href="{% url 'sales:list' %}" class="nav-item {% if request.resolver_match.app_name == 'sales' and 'booking' not in request.resolver_match.url_name %}active{% endif %}">
-        <i class="bi bi-bag-check"></i>
-        <span>Продажи</span>
-      </a>
-      <a href="{% url 'sales:bookings' %}" class="nav-item {% if 'booking' in request.resolver_match.url_name %}active{% endif %}">
-        <i class="bi bi-calendar-check"></i>
-        <span>Бронирования</span>
-      </a>
+    <!-- Строительство -->
+    <div class="nav-collapse {% if app == 'workers' or app == 'materials' %}open{% endif %}">
+      <div class="nav-collapse-header">
+        <span class="nav-collapse-label"><i class="bi bi-building-gear"></i>Строительство</span>
+        <i class="bi bi-chevron-right nav-chevron"></i>
+      </div>
+      <div class="nav-collapse-body">
+        <a href="{% url 'workers:list' %}"
+           class="nav-sub {% if app == 'workers' and 'salary' not in uname and 'attendance' not in uname and 'team' not in uname %}active{% endif %}">Рабочие</a>
+        <a href="{% url 'workers:attendance' %}"
+           class="nav-sub {% if uname == 'attendance' %}active{% endif %}">Посещаемость</a>
+        <a href="{% url 'workers:salary' %}"
+           class="nav-sub {% if 'salary' in uname %}active{% endif %}">Зарплата</a>
+        <a href="{% url 'materials:list' %}"
+           class="nav-sub {% if app == 'materials' and 'supplier' not in uname %}active{% endif %}">Материалы</a>
+        <a href="{% url 'materials:suppliers' %}"
+           class="nav-sub {% if 'supplier' in uname %}active{% endif %}">Поставщики</a>
+      </div>
     </div>
 
-    <div class="nav-label">Финансы</div>
-    <div class="nav-group">
-      <a href="{% url 'payments:list' %}" class="nav-item {% if request.resolver_match.app_name == 'payments' and request.resolver_match.url_name == 'list' %}active{% endif %}">
-        <i class="bi bi-cash-stack"></i>
-        <span>Платежи</span>
-      </a>
-      <a href="{% url 'payments:overdue' %}" class="nav-item {% if request.resolver_match.url_name == 'overdue' %}active{% endif %}">
-        <i class="bi bi-exclamation-triangle"></i>
-        <span>Долги / Просрочки</span>
-      </a>
-      <a href="{% url 'expenses:list' %}" class="nav-item {% if request.resolver_match.app_name == 'expenses' %}active{% endif %}">
-        <i class="bi bi-receipt"></i>
-        <span>Расходы</span>
-      </a>
-    </div>
+    <div class="nav-divider"></div>
 
-    <div class="nav-label">Строительство</div>
-    <div class="nav-group">
-      <a href="{% url 'workers:list' %}" class="nav-item {% if request.resolver_match.app_name == 'workers' and 'salary' not in request.resolver_match.url_name and 'attendance' not in request.resolver_match.url_name %}active{% endif %}">
-        <i class="bi bi-person-hard-hat"></i>
-        <span>Рабочие</span>
-      </a>
-      <a href="{% url 'workers:attendance' %}" class="nav-item {% if request.resolver_match.url_name == 'attendance' %}active{% endif %}">
-        <i class="bi bi-calendar-check"></i>
-        <span>Посещаемость</span>
-      </a>
-      <a href="{% url 'workers:salary' %}" class="nav-item {% if 'salary' in request.resolver_match.url_name %}active{% endif %}">
-        <i class="bi bi-cash-coin"></i>
-        <span>Зарплата</span>
-      </a>
-    </div>
+    <!-- Отчёты -->
+    <a href="{% url 'dashboard:reports' %}"
+       class="nav-item {% if uname == 'reports' %}active{% endif %}">
+      <i class="bi bi-bar-chart-line"></i><span>Отчёты</span>
+    </a>
 
-    <div class="nav-label">Склад</div>
-    <div class="nav-group">
-      <a href="{% url 'materials:list' %}" class="nav-item {% if request.resolver_match.app_name == 'materials' and 'supplier' not in request.resolver_match.url_name %}active{% endif %}">
-        <i class="bi bi-boxes"></i>
-        <span>Материалы</span>
-      </a>
-      <a href="{% url 'materials:suppliers' %}" class="nav-item {% if 'supplier' in request.resolver_match.url_name %}active{% endif %}">
-        <i class="bi bi-truck"></i>
-        <span>Поставщики</span>
-      </a>
-    </div>
+    {% if user.is_director %}
+    <!-- История активности (бывш. Журнал действий) -->
+    <a href="{% url 'audit:list' %}"
+       class="nav-item {% if app == 'audit' %}active{% endif %}">
+      <i class="bi bi-clock-history"></i><span>История активности</span>
+    </a>
+    <!-- Сотрудники -->
+    <a href="{% url 'accounts:users' %}"
+       class="nav-item {% if app == 'accounts' and 'user' in uname %}active{% endif %}">
+      <i class="bi bi-person-gear"></i><span>Сотрудники</span>
+    </a>
+    {% endif %}
 
-    <div class="nav-label">Аналитика</div>
-    <div class="nav-group">
-      <a href="{% url 'dashboard:reports' %}" class="nav-item {% if request.resolver_match.url_name == 'reports' %}active{% endif %}">
-        <i class="bi bi-bar-chart-line"></i>
-        <span>Отчёты</span>
-      </a>
-      {% if user.is_director %}
-      <a href="{% url 'audit:list' %}" class="nav-item {% if request.resolver_match.app_name == 'audit' %}active{% endif %}">
-        <i class="bi bi-shield-check"></i>
-        <span>Журнал действий</span>
-      </a>
-      <a href="{% url 'accounts:users' %}" class="nav-item {% if request.resolver_match.app_name == 'accounts' and 'user' in request.resolver_match.url_name %}active{% endif %}">
-        <i class="bi bi-person-gear"></i>
-        <span>Сотрудники</span>
-      </a>
-      {% endif %}
-    </div>
+    {% endwith %}
     {% endif %}
   </nav>
 
@@ -235,27 +232,34 @@
 <nav class="mobile-bottom-nav d-md-none">
   {% if user.is_client_role %}
   <a href="{% url 'dashboard:index' %}" class="mob-nav-item active">
-    <i class="bi bi-house-heart"></i><span>Мой кабинет</span>
+    <i class="bi bi-house-heart"></i><span>Кабинет</span>
   </a>
   <a href="{% url 'accounts:logout' %}" class="mob-nav-item">
     <i class="bi bi-box-arrow-right"></i><span>Выйти</span>
   </a>
   {% else %}
-  <a href="{% url 'dashboard:index' %}" class="mob-nav-item">
-    <i class="bi bi-speedometer2"></i><span>Дашборд</span>
+  {% with app=request.resolver_match.app_name %}
+  <a href="{% url 'dashboard:index' %}"
+     class="mob-nav-item {% if app == 'dashboard' %}active{% endif %}">
+    <i class="bi bi-house"></i><span>Главная</span>
   </a>
-  <a href="{% url 'complex:list' %}" class="mob-nav-item">
-    <i class="bi bi-buildings"></i><span>Объект</span>
+  <a href="{% url 'complex:list' %}"
+     class="mob-nav-item {% if app == 'complex' %}active{% endif %}">
+    <i class="bi bi-buildings"></i><span>Квартиры</span>
   </a>
-  <a href="{% url 'clients:list' %}" class="mob-nav-item">
+  <a href="{% url 'payments:list' %}"
+     class="mob-nav-item {% if app == 'payments' or app == 'expenses' %}active{% endif %}">
+    <i class="bi bi-cash-stack"></i><span>Финансы</span>
+  </a>
+  <a href="{% url 'clients:list' %}"
+     class="mob-nav-item {% if app == 'clients' or app == 'sales' %}active{% endif %}">
     <i class="bi bi-people"></i><span>Клиенты</span>
   </a>
-  <a href="{% url 'sales:list' %}" class="mob-nav-item">
-    <i class="bi bi-bag-check"></i><span>Продажи</span>
-  </a>
-  <a href="{% url 'payments:list' %}" class="mob-nav-item">
-    <i class="bi bi-cash-stack"></i><span>Платежи</span>
-  </a>
+  <button class="mob-nav-item mob-nav-more" id="mobileMoreBtn"
+          {% if app == 'workers' or app == 'materials' or app == 'audit' or app == 'accounts' %}style="color:var(--gold-light)"{% endif %}>
+    <i class="bi bi-grid-3x3-gap"></i><span>Ещё</span>
+  </button>
+  {% endwith %}
   {% endif %}
 </nav>
 {% endif %}

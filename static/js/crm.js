@@ -206,7 +206,32 @@ document.addEventListener('DOMContentLoaded', function () {
     }, 1800);
   }
 
-  /* ── 8. KEYBOARD SHORTCUT: / to focus search ─────────── */
+  /* ── 8. COLLAPSIBLE SIDEBAR NAV GROUPS ───────────────── */
+  document.querySelectorAll('.nav-collapse-header').forEach(function (header) {
+    header.addEventListener('click', function () {
+      var group = header.closest('.nav-collapse');
+      if (!group) return;
+      /* Close all other groups on the same level */
+      var allGroups = group.parentElement.querySelectorAll('.nav-collapse');
+      allGroups.forEach(function (g) {
+        if (g !== group) g.classList.remove('open');
+      });
+      group.classList.toggle('open');
+    });
+  });
+
+  /* ── 8b. MOBILE "MORE" BUTTON → open sidebar ─────────── */
+  var moreBtn = document.getElementById('mobileMoreBtn');
+  if (moreBtn && sidebar) {
+    var overlay2 = document.querySelector('.sidebar-overlay');
+    moreBtn.addEventListener('click', function () {
+      sidebar.classList.add('open');
+      if (overlay2) overlay2.classList.add('active');
+      document.body.style.overflow = 'hidden';
+    });
+  }
+
+  /* ── 9. KEYBOARD SHORTCUT: / to focus search ─────────── */
   document.addEventListener('keydown', function (e) {
     if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
       e.preventDefault();
@@ -215,7 +240,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 
-  /* ── 9. TABLE ROW CLICK → follow first link (if any) ─── */
+  /* ── 10. TABLE ROW CLICK → follow first link (if any) ─── */
   document.querySelectorAll('.crm-table tbody tr[data-href]').forEach(function (row) {
     row.style.cursor = 'pointer';
     row.addEventListener('click', function (e) {
@@ -225,7 +250,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 
-  /* ── 10. SMOOTH PAGE EXIT TRANSITION ─────────────────── */
+  /* ── 11. SMOOTH PAGE EXIT TRANSITION ─────────────────── */
   document.querySelectorAll('a[href]').forEach(function (link) {
     var href = link.getAttribute('href');
     /* Only internal same-origin links */

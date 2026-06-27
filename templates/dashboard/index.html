@@ -4,14 +4,14 @@
 {% block title %}Дашборд{% endblock %}
 
 {% block content %}
-<div class="page-header">
+<div class="dash-greeting">
   <div>
-    <h1 class="page-title">Дашборд</h1>
-    <p class="page-sub text-muted">{{ today|date:"d E Y г." }} — обзор состояния бизнеса</p>
+    <h1 class="dash-hello">{% now "H" as hour %}{% if hour < "12" %}Доброе утро{% elif hour < "18" %}Добрый день{% else %}Добрый вечер{% endif %}, {{ user.display_name }}!</h1>
+    <p class="dash-date">{{ today|date:"d E Y г., l" }}</p>
   </div>
-  <div class="d-flex gap-2">
-    <a href="{% url 'sales:create' %}" class="btn btn-gold"><i class="bi bi-plus-lg me-1"></i>Новая продажа</a>
-  </div>
+  <a href="{% url 'sales:create' %}" class="btn btn-gold btn-lg">
+    <i class="bi bi-plus-lg me-1"></i>Новая продажа
+  </a>
 </div>
 
 <!-- Alert banners -->

@@ -920,3 +920,128 @@ a.text-gold:hover { color: var(--gold) !important; }
   .scroll-progress { animation: none; }
 }
 
+/* =====================================================
+   SIMPLIFIED NAVIGATION — Collapsible sidebar groups
+   ===================================================== */
+.nav-divider {
+  height: 1px;
+  background: rgba(255,255,255,0.06);
+  margin: 10px 14px;
+}
+.nav-collapse { margin-bottom: 1px; }
+.nav-collapse-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: 10px;
+  color: rgba(255,255,255,0.62);
+  cursor: pointer;
+  font-size: 14px;
+  user-select: none;
+  transition: background 0.18s ease, color 0.18s ease, padding-left 0.18s ease;
+}
+.nav-collapse-header:hover {
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.92);
+  padding-left: 18px;
+}
+.nav-collapse.open .nav-collapse-header { color: rgba(255,255,255,0.9); }
+.nav-collapse-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 500;
+}
+.nav-collapse-label i { font-size: 16px; width: 20px; text-align: center; }
+.nav-chevron {
+  font-size: 11px;
+  color: rgba(255,255,255,0.28);
+  flex-shrink: 0;
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), color 0.2s ease;
+}
+.nav-collapse.open .nav-chevron { transform: rotate(90deg); color: var(--gold); }
+.nav-collapse-body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+  padding-left: 8px;
+}
+.nav-collapse.open .nav-collapse-body { max-height: 400px; }
+.nav-sub {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px 8px 30px;
+  border-radius: 8px;
+  color: rgba(255,255,255,0.46);
+  text-decoration: none;
+  font-size: 13px;
+  margin-bottom: 1px;
+  position: relative;
+  transition: background 0.15s ease, color 0.15s ease, padding-left 0.15s ease;
+}
+.nav-sub::before {
+  content: '';
+  position: absolute;
+  left: 13px; top: 50%;
+  transform: translateY(-50%);
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.16);
+  transition: all 0.15s ease;
+}
+.nav-sub:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.85); padding-left: 34px; }
+.nav-sub:hover::before { background: rgba(255,255,255,0.4); }
+.nav-sub.active {
+  color: var(--gold-light);
+  background: linear-gradient(90deg, rgba(212,175,55,0.14), rgba(212,175,55,0.03));
+  font-weight: 500;
+}
+.nav-sub.active::before { background: var(--gold); width: 6px; height: 6px; }
+
+/* Mobile "More" button */
+.mob-nav-more { background: none; border: none; cursor: pointer; outline: none; -webkit-tap-highlight-color: transparent; }
+
+/* =====================================================
+   DASHBOARD GREETING
+   ===================================================== */
+.dash-greeting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 28px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid rgba(212,175,55,0.15);
+  animation: fadeInUp 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.dash-hello {
+  font-family: Georgia, serif;
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--dark);
+  margin: 0;
+  line-height: 1.2;
+}
+.dash-date { margin: 4px 0 0; font-size: 14px; color: #8b7355; text-transform: capitalize; }
+
+@media (max-width: 767px) {
+  .dash-greeting { flex-direction: column; align-items: flex-start; }
+  .dash-hello { font-size: 20px; }
+  .dash-greeting .btn { width: 100%; justify-content: center; }
+}
+
+/* =====================================================
+   ACCESSIBILITY — Larger targets, cleaner labels
+   ===================================================== */
+.crm-table .btn-sm { min-height: 34px; padding: 5px 12px; font-size: 13px; }
+.crm-table td { padding: 14px 16px; }
+.crm-table th { padding: 13px 16px; }
+.form-control, .form-select { padding: 11px 14px; font-size: 15px; }
+label { font-size: 14px; font-weight: 500; color: var(--dark-2); margin-bottom: 5px; }
+@media (max-width: 767px) {
+  .crm-table td, .crm-table th { padding: 12px 12px; }
+  .form-control, .form-select { font-size: 16px; }
+}
+
