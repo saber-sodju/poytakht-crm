@@ -7,14 +7,18 @@ python manage.py collectstatic --noinput
 echo "=== Running database migrations ==="
 python manage.py migrate --noinput
 
-# Seed data (demo accounts) only when explicitly enabled.
-# NEVER run in production — set RUN_SEED_DATA=1 only in local/staging environments.
-if [ "${RUN_SEED_DATA:-0}" = "1" ]; then
-  echo "=== Loading seed data (demo accounts) ==="
-  python manage.py seed_data
-else
-  echo "=== Skipping seed data (production mode) ==="
-fi
+echo "=== Checking if users exist ==="
+python manage.py shell -c "
+from apps.accounts.models import CustomUser
+count = CustomUser.objects.filter(role='director').count()
+if count == 0:
+    print('No director found — running seed_data to create demo accounts...')
+    from django.core.management import call_command
+    call_command('seed_data')
+    print('Done.')
+else:
+    print(f'Found {count} director(s) — skipping seed_data.')
+"
 
 echo "=== Starting Gunicorn ==="
 exec gunicorn core.wsgi \
