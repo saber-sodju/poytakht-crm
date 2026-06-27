@@ -27,11 +27,14 @@ if not SECRET_KEY:
         )
 
 # ── Allowed hosts ─────────────────────────────────────────────────────────────
-# All hosts come from environment; no hardcoded domain names in code.
 _hosts_env = _env('ALLOWED_HOSTS', 'localhost,127.0.0.1')
 ALLOWED_HOSTS = [h.strip() for h in _hosts_env.split(',') if h.strip()]
 
-# Railway sets RAILWAY_PUBLIC_DOMAIN automatically
+# Railway wildcard — always allow all *.up.railway.app subdomains
+if '*.up.railway.app' not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append('*.up.railway.app')
+
+# If Railway sets the specific domain, add it explicitly too
 _railway_domain = _env('RAILWAY_PUBLIC_DOMAIN', '')
 if _railway_domain and _railway_domain not in ALLOWED_HOSTS:
     ALLOWED_HOSTS.append(_railway_domain)
@@ -39,6 +42,11 @@ if _railway_domain and _railway_domain not in ALLOWED_HOSTS:
 # ── CSRF ──────────────────────────────────────────────────────────────────────
 _csrf_env = _env('CSRF_TRUSTED_ORIGINS', '')
 CSRF_TRUSTED_ORIGINS = [o.strip() for o in _csrf_env.split(',') if o.strip()]
+
+# Railway wildcard — always trust https://*.up.railway.app for CSRF
+if 'https://*.up.railway.app' not in CSRF_TRUSTED_ORIGINS:
+    CSRF_TRUSTED_ORIGINS.append('https://*.up.railway.app')
+
 if _railway_domain:
     _railway_origin = f'https://{_railway_domain}'
     if _railway_origin not in CSRF_TRUSTED_ORIGINS:
