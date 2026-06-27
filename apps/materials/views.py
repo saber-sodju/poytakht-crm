@@ -7,11 +7,11 @@ from decimal import Decimal
 from datetime import date
 
 from .models import Supplier, Material, MaterialMovement
-from apps.accounts.decorators import staff_required, finance_required
+from apps.accounts.decorators import staff_required, construction_required, warehouse_required
 
 
 @login_required
-@staff_required
+@warehouse_required
 def material_list(request):
     q = request.GET.get('q', '')
     low_stock = request.GET.get('low', '')
@@ -39,7 +39,7 @@ def material_list(request):
 
 
 @login_required
-@staff_required
+@warehouse_required
 def material_detail(request, pk):
     material = get_object_or_404(Material.objects.select_related('supplier'), pk=pk)
     movements = material.movements.select_related('supplier', 'block', 'added_by').order_by('-date')[:50]
@@ -54,7 +54,7 @@ def material_detail(request, pk):
 
 
 @login_required
-@staff_required
+@construction_required
 def material_create(request):
     if request.method == 'POST':
         name = request.POST.get('name', '').strip()
@@ -83,7 +83,7 @@ def material_create(request):
 
 
 @login_required
-@staff_required
+@construction_required
 def material_edit(request, pk):
     material = get_object_or_404(Material, pk=pk)
     if request.method == 'POST':
@@ -107,7 +107,7 @@ def material_edit(request, pk):
 
 
 @login_required
-@staff_required
+@warehouse_required
 def movement_create(request, material_pk=None):
     material = get_object_or_404(Material, pk=material_pk) if material_pk else None
 
@@ -151,14 +151,14 @@ def movement_create(request, material_pk=None):
 
 
 @login_required
-@staff_required
+@warehouse_required
 def supplier_list(request):
     suppliers = Supplier.objects.prefetch_related('materials').filter(is_active=True)
     return render(request, 'materials/supplier_list.html', {'suppliers': suppliers})
 
 
 @login_required
-@staff_required
+@construction_required
 def supplier_create(request):
     if request.method == 'POST':
         name = request.POST.get('name', '').strip()
@@ -180,7 +180,7 @@ def supplier_create(request):
 
 
 @login_required
-@staff_required
+@construction_required
 def supplier_edit(request, pk):
     supplier = get_object_or_404(Supplier, pk=pk)
     if request.method == 'POST':

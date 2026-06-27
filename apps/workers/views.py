@@ -7,11 +7,11 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 from .models import Worker, Team, Position, Attendance, SalaryPayment
-from apps.accounts.decorators import staff_required, finance_required
+from apps.accounts.decorators import staff_required, finance_required, construction_required
 
 
 @login_required
-@staff_required
+@construction_required
 def worker_list(request):
     q = request.GET.get('q', '')
     team_id = request.GET.get('team', '')
@@ -41,7 +41,7 @@ def worker_list(request):
 
 
 @login_required
-@staff_required
+@construction_required
 def worker_detail(request, pk):
     worker = get_object_or_404(Worker.objects.select_related('position', 'team', 'added_by'), pk=pk)
     today = date.today()
@@ -68,7 +68,7 @@ def worker_detail(request, pk):
 
 
 @login_required
-@staff_required
+@construction_required
 def worker_create(request):
     if request.method == 'POST':
         full_name = request.POST.get('full_name', '').strip()
@@ -103,7 +103,7 @@ def worker_create(request):
 
 
 @login_required
-@staff_required
+@construction_required
 def worker_edit(request, pk):
     worker = get_object_or_404(Worker, pk=pk)
     if request.method == 'POST':
@@ -134,7 +134,7 @@ def worker_edit(request, pk):
 
 
 @login_required
-@staff_required
+@construction_required
 def attendance_day(request):
     today = date.today()
     selected_date = request.GET.get('date', str(today))
@@ -245,14 +245,14 @@ def salary_mark_paid(request, pk):
 
 
 @login_required
-@staff_required
+@construction_required
 def team_list(request):
     teams = Team.objects.select_related('complex').prefetch_related('workers').all()
     return render(request, 'workers/teams.html', {'teams': teams})
 
 
 @login_required
-@staff_required
+@construction_required
 def team_create(request):
     if request.method == 'POST':
         name = request.POST.get('name', '').strip()

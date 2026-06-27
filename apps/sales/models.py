@@ -18,7 +18,7 @@ class Booking(models.Model):
     is_active = models.BooleanField(default=True, verbose_name='Активна')
     created_by = models.ForeignKey(
         'accounts.CustomUser', on_delete=models.SET_NULL, null=True,
-        verbose_name='Оформил'
+        related_name='bookings_created', verbose_name='Оформил'
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -36,8 +36,7 @@ class Booking(models.Model):
 
     @property
     def days_left(self):
-        delta = self.end_date - timezone.now().date()
-        return delta.days
+        return (self.end_date - timezone.now().date()).days
 
 
 class Sale(models.Model):
@@ -46,9 +45,9 @@ class Sale(models.Model):
     PAYMENT_MORTGAGE = 'mortgage'
 
     PAYMENT_CHOICES = [
-        (PAYMENT_FULL, 'Полная оплата'),
+        (PAYMENT_FULL,        'Полная оплата'),
         (PAYMENT_INSTALLMENT, 'Рассрочка'),
-        (PAYMENT_MORTGAGE, 'Ипотека'),
+        (PAYMENT_MORTGAGE,    'Ипотека'),
     ]
 
     apartment = models.OneToOneField(
@@ -66,6 +65,17 @@ class Sale(models.Model):
     contract_date = models.DateField(null=True, blank=True, verbose_name='Дата договора')
     sale_date = models.DateField(default=timezone.now, verbose_name='Дата продажи')
     note = models.TextField(blank=True, verbose_name='Примечание')
+
+    # Soft-cancel fields — never hard-delete a sale
+    is_cancelled = models.BooleanField(default=False, verbose_name='Отменена')
+    cancelled_at = models.DateTimeField(null=True, blank=True, verbose_name='Дата отмены')
+    cancelled_by = models.ForeignKey(
+        'accounts.CustomUser', on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='cancelled_sales', verbose_name='Отменил'
+    )
+    cancellation_reason = models.TextField(blank=True, verbose_name='Причина отмены')
+
     created_by = models.ForeignKey(
         'accounts.CustomUser', on_delete=models.SET_NULL, null=True,
         related_name='sales_created', verbose_name='Оформил'
@@ -102,4 +112,4 @@ class Sale(models.Model):
     def update_paid_amount(self):
         total = self.payments.aggregate(total=models.Sum('amount'))['total'] or 0
         self.paid_amount = total
-        self.save(update_fields=['paid_amount'])
+        self.save(update_fields=['paid_amount', 'updated_at'])

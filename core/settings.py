@@ -1,19 +1,48 @@
 import os
 from pathlib import Path
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / '.env')
 
-SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-dev-key-change-in-production')
-DEBUG = os.getenv('DEBUG', 'True') == 'True'
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
-ALLOWED_HOSTS += ['*.up.railway.app', 'web-production-f404d3.up.railway.app']
-CSRF_TRUSTED_ORIGINS = [
-    'https://web-production-f404d3.up.railway.app',
-    'https://*.up.railway.app',
-]
+def _env(key, default=None):
+    return os.getenv(key, default)
+
+
+# ── Core ──────────────────────────────────────────────────────────────────────
+DEBUG = _env('DEBUG', 'False') == 'True'
+
+SECRET_KEY = _env('SECRET_KEY')
+if not SECRET_KEY:
+    if DEBUG:
+        # Dev-only fallback — will never be used in production
+        SECRET_KEY = 'dev-only-insecure-key-DO-NOT-USE-IN-PRODUCTION'
+    else:
+        raise ImproperlyConfigured(
+            'SECRET_KEY environment variable is required in production. '
+            'Generate one with: python -c "from django.core.management.utils '
+            'import get_random_secret_key; print(get_random_secret_key())"'
+        )
+
+# ── Allowed hosts ─────────────────────────────────────────────────────────────
+# All hosts come from environment; no hardcoded domain names in code.
+_hosts_env = _env('ALLOWED_HOSTS', 'localhost,127.0.0.1')
+ALLOWED_HOSTS = [h.strip() for h in _hosts_env.split(',') if h.strip()]
+
+# Railway sets RAILWAY_PUBLIC_DOMAIN automatically
+_railway_domain = _env('RAILWAY_PUBLIC_DOMAIN', '')
+if _railway_domain and _railway_domain not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(_railway_domain)
+
+# ── CSRF ──────────────────────────────────────────────────────────────────────
+_csrf_env = _env('CSRF_TRUSTED_ORIGINS', '')
+CSRF_TRUSTED_ORIGINS = [o.strip() for o in _csrf_env.split(',') if o.strip()]
+if _railway_domain:
+    _railway_origin = f'https://{_railway_domain}'
+    if _railway_origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(_railway_origin)
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -71,12 +100,13 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'core.wsgi.application'
 
-USE_SQLITE = os.getenv('USE_SQLITE', 'False') == 'True'
+# ── Database ──────────────────────────────────────────────────────────────────
+USE_SQLITE = _env('USE_SQLITE', 'False') == 'True'
 
-_db_url = os.getenv('DATABASE_URL') or os.getenv('PGHOST') and (
-    f"postgresql://{os.getenv('PGUSER')}:{os.getenv('PGPASSWORD')}@"
-    f"{os.getenv('PGHOST')}:{os.getenv('PGPORT', '5432')}/{os.getenv('PGDATABASE', 'railway')}"
-)
+_db_url = _env('DATABASE_URL') or (_env('PGHOST') and (
+    f"postgresql://{_env('PGUSER')}:{_env('PGPASSWORD')}@"
+    f"{_env('PGHOST')}:{_env('PGPORT', '5432')}/{_env('PGDATABASE', 'railway')}"
+))
 
 if _db_url:
     from urllib.parse import urlparse as _urlparse
@@ -90,6 +120,7 @@ if _db_url:
             'HOST': _u.hostname,
             'PORT': _u.port or 5432,
             'OPTIONS': {'connect_timeout': 10},
+            'CONN_MAX_AGE': 60,
         }
     }
 elif USE_SQLITE:
@@ -103,11 +134,12 @@ else:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
-            'NAME': os.getenv('DB_NAME', 'poytakht_crm'),
-            'USER': os.getenv('DB_USER', 'postgres'),
-            'PASSWORD': os.getenv('DB_PASSWORD', 'postgres'),
-            'HOST': os.getenv('DB_HOST', 'localhost'),
-            'PORT': os.getenv('DB_PORT', '5432'),
+            'NAME': _env('DB_NAME', 'poytakht_crm'),
+            'USER': _env('DB_USER', 'postgres'),
+            'PASSWORD': _env('DB_PASSWORD', ''),
+            'HOST': _env('DB_HOST', 'localhost'),
+            'PORT': _env('DB_PORT', '5432'),
+            'CONN_MAX_AGE': 60,
         }
     }
 
@@ -142,35 +174,120 @@ CRISPY_TEMPLATE_PACK = 'bootstrap5'
 
 MESSAGE_STORAGE = 'django.contrib.messages.storage.session.SessionStorage'
 
-# ── Security ──────────────────────────────────────────────────────────────────
-SESSION_COOKIE_AGE = 3600 * 10          # 10 hours
+# ── Session & Cookie Security ─────────────────────────────────────────────────
+SESSION_COOKIE_AGE = 3600 * 8          # 8 hours (was 10)
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 SESSION_SAVE_EVERY_REQUEST = True
+SESSION_COOKIE_HTTPONLY = True          # JS cannot read session cookie
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_HTTPONLY = False            # JS needs CSRF for AJAX — keep False
+CSRF_COOKIE_SAMESITE = 'Lax'
 
-SECURE_BROWSER_XSS_FILTER = True
+# ── Security Headers ──────────────────────────────────────────────────────────
+SECURE_BROWSER_XSS_FILTER = True        # deprecated in newer Django but harmless
 SECURE_CONTENT_TYPE_NOSNIFF = True
-X_FRAME_OPTIONS = 'SAMEORIGIN'
+X_FRAME_OPTIONS = 'SAMEORIGIN'          # allow same-origin iframes (reports/PDF)
+SECURE_REFERRER_POLICY = 'same-origin'
 
+# ── Production-only Security ──────────────────────────────────────────────────
 if not DEBUG:
+    # Railway terminates SSL at the load balancer — trust X-Forwarded-Proto
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+    # Cookies must only be sent over HTTPS
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
-    SECURE_HSTS_SECONDS = 31536000
+
+    # HSTS — tells browsers to always use HTTPS for this domain
+    SECURE_HSTS_SECONDS = 31536000          # 1 year
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
+
+    # NOTE: Do NOT set SECURE_SSL_REDIRECT=True when behind Railway's proxy.
+    # Railway handles HTTP→HTTPS redirect at the load balancer level.
+    # Setting it in Django would cause an infinite redirect loop.
+
+# ── Login Rate Limiting ───────────────────────────────────────────────────────
+# Used by apps/accounts/views.py to block brute-force attempts.
+LOGIN_MAX_ATTEMPTS = 5
+LOGIN_LOCKOUT_MINUTES = 15
+
+# ── File Upload Security ──────────────────────────────────────────────────────
+FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024    # 5 MB max in memory
+DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024    # 5 MB max POST body
+MAX_UPLOAD_SIZE = 10 * 1024 * 1024               # 10 MB absolute max (checked in views)
+ALLOWED_UPLOAD_EXTENSIONS = [
+    '.jpg', '.jpeg', '.png', '.gif', '.webp',     # images
+    '.pdf',                                        # documents
+    '.doc', '.docx', '.xls', '.xlsx',             # office
+]
+
+# ── Caching (for rate limiting) ───────────────────────────────────────────────
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'poytakht-crm-cache',
+    }
+}
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
     'formatters': {
-        'verbose': {'format': '{levelname} {asctime} {module} {message}', 'style': '{'},
+        'verbose': {
+            'format': '[{levelname}] {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '[{levelname}] {asctime} {message}',
+            'style': '{',
+        },
+    },
+    'filters': {
+        'require_debug_true': {'()': 'django.utils.log.RequireDebugTrue'},
+        'require_debug_false': {'()': 'django.utils.log.RequireDebugFalse'},
     },
     'handlers': {
-        'console': {'class': 'logging.StreamHandler', 'formatter': 'verbose'},
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+        'console_debug': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+            'filters': ['require_debug_true'],
+        },
+        'mail_admins': {
+            'level': 'ERROR',
+            'class': 'django.utils.log.AdminEmailHandler',
+            'filters': ['require_debug_false'],
+        },
     },
-    'root': {'handlers': ['console'], 'level': 'WARNING'},
+    'root': {
+        'handlers': ['console'],
+        'level': 'WARNING',
+    },
     'loggers': {
-        'django': {'handlers': ['console'], 'level': 'WARNING', 'propagate': False},
+        'django': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        'django.security': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        'apps': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'apps.accounts': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
     },
 }
