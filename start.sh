@@ -19,6 +19,17 @@ if [ "${RUN_SEED_DATA:-0}" = "1" ]; then
   python manage.py seed_data
 fi
 
+# SAFETY NET for ephemeral databases (SQLite without a volume):
+# if after all of the above there is still no director, the DB is empty and
+# nobody could log in at all. Seed demo data so the system stays accessible.
+# Fix properly by attaching PostgreSQL (see README_PRODUCTION.md).
+DIRECTOR_EXISTS=$(python manage.py shell -c "from apps.accounts.models import CustomUser; print(1 if CustomUser.objects.filter(role='director').exists() else 0)" | tail -1)
+if [ "$DIRECTOR_EXISTS" = "0" ]; then
+  echo "!!! WARNING: database has no director (ephemeral DB?) — seeding demo data"
+  echo "!!! Attach PostgreSQL and set INITIAL_DIRECTOR_* vars for production."
+  python manage.py seed_data
+fi
+
 echo "=== Starting Gunicorn ==="
 exec gunicorn core.wsgi \
   --bind "0.0.0.0:${PORT:-8000}" \
