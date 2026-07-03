@@ -89,15 +89,19 @@ def cancel_booking(*, user, booking) -> None:
 
 @transaction.atomic
 def create_sale(*, user, apartment_id, client, total_price, payment_type,
-                contract_number='', contract_date=None, sale_date=None, note='') -> Sale:
+                contract_number='', contract_date=None, sale_date=None, note='',
+                initial_payment=None) -> Sale:
     """
     Atomically create a Sale.
 
     Validates:
     - Apartment is not already sold
     - No active (non-cancelled) sale exists for this apartment
+    - initial_payment (if given) does not exceed total_price
     - Updates apartment status → sold
     - Closes any existing booking
+    - Creates the first Payment when initial_payment > 0
+    - Notifies directors
     - Logs the action
     """
     # Lock apartment to prevent race-condition double-sales
@@ -139,6 +143,28 @@ def create_sale(*, user, apartment_id, client, total_price, payment_type,
     except Booking.DoesNotExist:
         pass
 
+    # First payment / advance — recorded as a real Payment so income = actual money
+    if initial_payment and initial_payment > 0:
+        if initial_payment > total_price:
+            raise ValidationError('Первый платёж не может быть больше цены продажи.')
+        from apps.payments.models import Payment
+        payment = Payment.objects.create(
+            sale=sale,
+            amount=initial_payment,
+            payment_date=sale.sale_date,
+            note='Первый платёж при оформлении продажи',
+            added_by=user,
+        )  # Payment.save() updates sale.paid_amount automatically
+        log_action(
+            user=user,
+            action=AuditLog.ACTION_CREATE,
+            model_name='Payment',
+            object_id=payment.pk,
+            object_repr=str(payment),
+            description=f'Первый платёж ${initial_payment} при продаже квартиры {apartment.number}',
+            new_value=f'amount={initial_payment}, sale_id={sale.pk}',
+        )
+
     log_action(
         user=user,
         action=AuditLog.ACTION_CREATE,
@@ -151,8 +177,31 @@ def create_sale(*, user, apartment_id, client, total_price, payment_type,
         ),
     )
 
+    _notify_directors(
+        notification_type='new_sale',
+        title=f'Новая продажа: кв. {apartment.number} — ${total_price}',
+        message=f'Клиент: {client.full_name}. Оформил: {user.display_name}.',
+        link=f'/sales/{sale.pk}/',
+        exclude_user=user,
+    )
+
     logger.info('Sale %d created: apartment %s → client %s by %s', sale.pk, apartment.number, client, user)
     return sale
+
+
+def _notify_directors(*, notification_type, title, message='', link='', exclude_user=None):
+    """Create a Notification for every director (except the actor)."""
+    from apps.accounts.models import CustomUser, Notification
+    directors = CustomUser.objects.filter(role=CustomUser.ROLE_DIRECTOR, is_active=True)
+    if exclude_user is not None:
+        directors = directors.exclude(pk=exclude_user.pk)
+    Notification.objects.bulk_create([
+        Notification(
+            user=d, notification_type=notification_type,
+            title=title[:200], message=message, link=link,
+        )
+        for d in directors
+    ])
 
 
 @transaction.atomic

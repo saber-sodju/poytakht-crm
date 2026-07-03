@@ -1,5 +1,6 @@
 from django.db import models
 from django.utils import timezone
+from core.validators import validate_document
 
 
 class PaymentSchedule(models.Model):
@@ -41,7 +42,10 @@ class Payment(models.Model):
     )
     amount = models.DecimalField(max_digits=15, decimal_places=2, verbose_name='Сумма ($)')
     payment_date = models.DateField(default=timezone.now, verbose_name='Дата платежа')
-    receipt = models.FileField(upload_to='receipts/', blank=True, null=True, verbose_name='Квитанция')
+    receipt = models.FileField(
+        upload_to='receipts/', blank=True, null=True, verbose_name='Квитанция',
+        validators=[validate_document],
+    )
     note = models.TextField(blank=True, verbose_name='Примечание')
     added_by = models.ForeignKey(
         'accounts.CustomUser', on_delete=models.SET_NULL, null=True,

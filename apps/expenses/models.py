@@ -1,4 +1,5 @@
 from django.db import models
+from core.validators import validate_document
 
 
 CATEGORY_CHOICES = [
@@ -37,7 +38,10 @@ class Expense(models.Model):
     amount = models.DecimalField(max_digits=15, decimal_places=2, verbose_name='Сумма ($)')
     date = models.DateField(verbose_name='Дата')
     description = models.TextField(blank=True, verbose_name='Описание')
-    document = models.FileField(upload_to='expense_docs/', blank=True, null=True, verbose_name='Документ/Чек')
+    document = models.FileField(
+        upload_to='expense_docs/', blank=True, null=True, verbose_name='Документ/Чек',
+        validators=[validate_document],
+    )
     added_by = models.ForeignKey(
         'accounts.CustomUser', on_delete=models.SET_NULL, null=True,
         verbose_name='Добавил'

@@ -43,6 +43,7 @@ def login_view(request):
             'form': LoginForm(),
             'locked': True,
             'lockout_minutes': lockout_minutes,
+            'show_demo': settings.DEBUG,
         })
 
     form = LoginForm(request, data=request.POST or None)
@@ -77,7 +78,7 @@ def login_view(request):
                     f'Доступ заблокирован на {lockout_minutes} минут.'
                 )
 
-    return render(request, 'auth/login.html', {'form': form})
+    return render(request, 'auth/login.html', {'form': form, 'show_demo': settings.DEBUG})
 
 
 def logout_view(request):

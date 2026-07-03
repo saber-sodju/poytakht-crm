@@ -57,6 +57,7 @@
 
     <div class="nav-divider"></div>
 
+    {% if not user.is_construction_manager and not user.is_warehouse %}
     <!-- Квартиры -->
     <div class="nav-collapse {% if app == 'complex' %}open{% endif %}">
       <div class="nav-collapse-header">
@@ -98,45 +99,60 @@
            class="nav-sub {% if app == 'payments' and uname == 'list' %}active{% endif %}">Платежи</a>
         <a href="{% url 'payments:overdue' %}"
            class="nav-sub {% if uname == 'overdue' %}active{% endif %}">Должники</a>
+        {% if user.can_see_finance %}
         <a href="{% url 'expenses:list' %}"
            class="nav-sub {% if app == 'expenses' %}active{% endif %}">Расходы</a>
+        {% endif %}
       </div>
     </div>
+    {% endif %}
 
+    {% if user.can_manage_workers or user.can_manage_materials %}
     <!-- Строительство -->
-    <div class="nav-collapse {% if app == 'workers' or app == 'materials' %}open{% endif %}">
+    <div class="nav-collapse {% if app == 'workers' or app == 'materials' or user.is_construction_manager or user.is_warehouse %}open{% endif %}">
       <div class="nav-collapse-header">
         <span class="nav-collapse-label"><i class="bi bi-building-gear"></i>Строительство</span>
         <i class="bi bi-chevron-right nav-chevron"></i>
       </div>
       <div class="nav-collapse-body">
+        {% if user.can_manage_workers %}
         <a href="{% url 'workers:list' %}"
            class="nav-sub {% if app == 'workers' and 'salary' not in uname and 'attendance' not in uname and 'team' not in uname %}active{% endif %}">Рабочие</a>
         <a href="{% url 'workers:attendance' %}"
            class="nav-sub {% if uname == 'attendance' %}active{% endif %}">Посещаемость</a>
+        {% endif %}
+        {% if user.can_see_finance %}
         <a href="{% url 'workers:salary' %}"
            class="nav-sub {% if 'salary' in uname %}active{% endif %}">Зарплата</a>
+        {% endif %}
+        {% if user.can_manage_materials %}
         <a href="{% url 'materials:list' %}"
            class="nav-sub {% if app == 'materials' and 'supplier' not in uname %}active{% endif %}">Материалы</a>
         <a href="{% url 'materials:suppliers' %}"
            class="nav-sub {% if 'supplier' in uname %}active{% endif %}">Поставщики</a>
+        {% endif %}
       </div>
     </div>
+    {% endif %}
 
     <div class="nav-divider"></div>
 
+    {% if user.can_view_reports %}
     <!-- Отчёты -->
     <a href="{% url 'dashboard:reports' %}"
        class="nav-item {% if uname == 'reports' %}active{% endif %}">
       <i class="bi bi-bar-chart-line"></i><span>Отчёты</span>
     </a>
+    {% endif %}
 
-    {% if user.is_director %}
+    {% if user.can_view_audit_log %}
     <!-- История активности (бывш. Журнал действий) -->
     <a href="{% url 'audit:list' %}"
        class="nav-item {% if app == 'audit' %}active{% endif %}">
       <i class="bi bi-clock-history"></i><span>История активности</span>
     </a>
+    {% endif %}
+    {% if user.is_director %}
     <!-- Сотрудники -->
     <a href="{% url 'accounts:users' %}"
        class="nav-item {% if app == 'accounts' and 'user' in uname %}active{% endif %}">
@@ -243,6 +259,29 @@
      class="mob-nav-item {% if app == 'dashboard' %}active{% endif %}">
     <i class="bi bi-house"></i><span>Главная</span>
   </a>
+  {% if user.is_construction_manager %}
+  <a href="{% url 'workers:list' %}"
+     class="mob-nav-item {% if app == 'workers' %}active{% endif %}">
+    <i class="bi bi-person-vcard"></i><span>Рабочие</span>
+  </a>
+  <a href="{% url 'workers:attendance' %}"
+     class="mob-nav-item">
+    <i class="bi bi-calendar-check"></i><span>Табель</span>
+  </a>
+  <a href="{% url 'materials:list' %}"
+     class="mob-nav-item {% if app == 'materials' %}active{% endif %}">
+    <i class="bi bi-boxes"></i><span>Материалы</span>
+  </a>
+  {% elif user.is_warehouse %}
+  <a href="{% url 'materials:list' %}"
+     class="mob-nav-item {% if app == 'materials' %}active{% endif %}">
+    <i class="bi bi-boxes"></i><span>Материалы</span>
+  </a>
+  <a href="{% url 'materials:suppliers' %}"
+     class="mob-nav-item">
+    <i class="bi bi-truck"></i><span>Поставщики</span>
+  </a>
+  {% else %}
   <a href="{% url 'complex:list' %}"
      class="mob-nav-item {% if app == 'complex' %}active{% endif %}">
     <i class="bi bi-buildings"></i><span>Квартиры</span>
@@ -255,6 +294,7 @@
      class="mob-nav-item {% if app == 'clients' or app == 'sales' %}active{% endif %}">
     <i class="bi bi-people"></i><span>Клиенты</span>
   </a>
+  {% endif %}
   <button class="mob-nav-item mob-nav-more" id="mobileMoreBtn"
           {% if app == 'workers' or app == 'materials' or app == 'audit' or app == 'accounts' %}style="color:var(--gold-light)"{% endif %}>
     <i class="bi bi-grid-3x3-gap"></i><span>Ещё</span>

@@ -1,7 +1,5 @@
 from django.contrib import admin
 from django.urls import path, include
-from django.conf import settings
-from django.conf.urls.static import static
 from . import views as core_views
 
 urlpatterns = [
@@ -11,6 +9,9 @@ urlpatterns = [
     # Apple looks for this at the root automatically (fallback discovery)
     path('apple-touch-icon.png', core_views.apple_touch_icon),
     path('apple-touch-icon-precomposed.png', core_views.apple_touch_icon),
+    # Media served with login + object-level access control (works in prod too,
+    # where the old static() helper returned nothing with DEBUG=False)
+    path('media/<path:path>', core_views.protected_media, name='protected_media'),
     path('', include('apps.dashboard.urls')),
     path('auth/', include('apps.accounts.urls')),
     path('complex/', include('apps.complex.urls')),
@@ -21,4 +22,4 @@ urlpatterns = [
     path('audit/', include('apps.audit.urls')),
     path('workers/', include('apps.workers.urls')),
     path('materials/', include('apps.materials.urls')),
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+]

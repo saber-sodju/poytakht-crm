@@ -11,7 +11,7 @@ from apps.accounts.decorators import finance_required, staff_required
 
 
 @login_required
-@staff_required
+@finance_required
 def expense_list(request):
     q = request.GET.get('q', '')
     category = request.GET.get('category', '')
@@ -51,11 +51,36 @@ def expense_list(request):
 @login_required
 @finance_required
 def expense_create(request):
+    from django.conf import settings
     form = ExpenseForm(request.POST or None, request.FILES or None)
     if request.method == 'POST' and form.is_valid():
         expense = form.save(commit=False)
         expense.added_by = request.user
         expense.save()
+
+        from apps.audit.models import log_action, AuditLog
+        log_action(
+            user=request.user, action=AuditLog.ACTION_CREATE,
+            model_name='Expense', object_id=expense.pk,
+            object_repr=str(expense),
+            description=f'Расход ${expense.amount}: {expense.description[:100]}',
+            new_value=f'amount={expense.amount}, category={expense.category}',
+            request=request,
+        )
+
+        # Notify directors about large expenses
+        threshold = getattr(settings, 'LARGE_EXPENSE_THRESHOLD', 5000)
+        if expense.amount >= threshold:
+            from apps.sales.services import _notify_directors
+            _notify_directors(
+                notification_type='new_expense',
+                title=f'Крупный расход: ${expense.amount}',
+                message=f'{expense.get_category_display()}: {expense.description[:150]}. '
+                        f'Добавил: {request.user.display_name}.',
+                link='/expenses/',
+                exclude_user=request.user,
+            )
+
         block = expense.block
         if block and block.is_over_budget:
             messages.warning(request, f'⚠️ Бюджет блока «{block.name}» превышен!')

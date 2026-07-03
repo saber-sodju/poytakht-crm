@@ -1,12 +1,12 @@
 {% extends 'base.html' %}
 {% load humanize %}
 
-{% block title %}Лиды{% endblock %}
+{% block title %}Потенциальные покупатели{% endblock %}
 
 {% block content %}
 <div class="page-header">
   <div>
-    <h1 class="page-title">Лиды / CRM</h1>
+    <h1 class="page-title">Потенциальные покупатели</h1>
     <p class="page-sub text-muted">Потенциальные покупатели</p>
   </div>
   <a href="{% url 'clients:lead_create' %}" class="btn btn-gold"><i class="bi bi-plus-lg me-1"></i>Новый лид</a>

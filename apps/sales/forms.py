@@ -23,6 +23,18 @@ class BookingForm(forms.ModelForm):
 
 
 class SaleForm(forms.ModelForm):
+    initial_payment = forms.DecimalField(
+        label='Первый платёж / Аванс ($)',
+        required=False,
+        min_value=0,
+        max_digits=15,
+        decimal_places=2,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control', 'step': '0.01', 'placeholder': '0.00'
+        }),
+        help_text='Если клиент внёс деньги сразу — укажите сумму, платёж создастся автоматически.',
+    )
+
     class Meta:
         model = Sale
         fields = ['apartment', 'client', 'total_price', 'payment_type',
@@ -44,3 +56,14 @@ class SaleForm(forms.ModelForm):
         self.fields['apartment'].queryset = Apartment.objects.filter(
             status__in=['free', 'booked']
         ).select_related('floor__block')
+
+    def clean(self):
+        cleaned = super().clean()
+        initial_payment = cleaned.get('initial_payment')
+        total_price = cleaned.get('total_price')
+        if initial_payment and total_price and initial_payment > total_price:
+            self.add_error(
+                'initial_payment',
+                'Первый платёж не может быть больше цены продажи.'
+            )
+        return cleaned

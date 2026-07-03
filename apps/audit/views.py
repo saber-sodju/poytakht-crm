@@ -3,11 +3,11 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 
 from .models import AuditLog
-from apps.accounts.decorators import director_required
+from apps.accounts.decorators import director_or_admin_required
 
 
 @login_required
-@director_required
+@director_or_admin_required
 def audit_list(request):
     q = request.GET.get('q', '')
     action = request.GET.get('action', '')

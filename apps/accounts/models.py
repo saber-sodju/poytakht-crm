@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from core.validators import validate_image
 
 
 class CustomUser(AbstractUser):
@@ -29,7 +30,10 @@ class CustomUser(AbstractUser):
         max_length=25, choices=ROLE_CHOICES, default=ROLE_MANAGER, verbose_name='Роль'
     )
     phone = models.CharField(max_length=25, blank=True, verbose_name='Телефон')
-    avatar = models.ImageField(upload_to='avatars/', blank=True, null=True, verbose_name='Аватар')
+    avatar = models.ImageField(
+        upload_to='avatars/', blank=True, null=True, verbose_name='Аватар',
+        validators=[validate_image],
+    )
 
     class Meta:
         verbose_name = 'Пользователь'

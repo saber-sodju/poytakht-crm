@@ -10,6 +10,7 @@ from apps.sales.models import Sale, Booking
 from apps.payments.models import Payment, PaymentSchedule
 from apps.expenses.models import Expense
 from apps.audit.models import AuditLog
+from apps.accounts.decorators import finance_required, staff_required
 
 
 @login_required
@@ -55,6 +56,25 @@ def dashboard_index(request):
     expiring_bookings = Booking.objects.filter(
         is_active=True, end_date__lte=today + timedelta(days=3), end_date__gte=today
     ).count()
+
+    # ── "Что нужно сделать сегодня" — concrete task lists ─────────────────────
+    overdue_items = (
+        PaymentSchedule.objects
+        .filter(is_paid=False, due_date__lt=today)
+        .select_related('sale__client', 'sale__apartment')
+        .order_by('due_date')[:5]
+    )
+    due_today_items = (
+        PaymentSchedule.objects
+        .filter(is_paid=False, due_date=today)
+        .select_related('sale__client', 'sale__apartment')[:5]
+    )
+    expiring_items = (
+        Booking.objects
+        .filter(is_active=True, end_date__lte=today + timedelta(days=3), end_date__gte=today)
+        .select_related('client', 'apartment')
+        .order_by('end_date')[:5]
+    )
 
     # Recent audit logs
     recent_logs = AuditLog.objects.select_related('user').all()[:8]
@@ -124,6 +144,9 @@ def dashboard_index(request):
         'overdue': overdue,
         'today_payments': today_payments,
         'expiring_bookings': expiring_bookings,
+        'overdue_items': overdue_items,
+        'due_today_items': due_today_items,
+        'expiring_items': expiring_items,
         'recent_logs': recent_logs,
         'recent_sales': recent_sales,
         'chart_labels': chart_labels,
@@ -152,6 +175,7 @@ def client_dashboard(request):
 
 
 @login_required
+@finance_required
 def reports_view(request):
     today = timezone.now().date()
     year = int(request.GET.get('year', today.year))

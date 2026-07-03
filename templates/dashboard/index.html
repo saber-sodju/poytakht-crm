@@ -30,7 +30,45 @@
 </div>
 {% endif %}
 
-<!-- KPI cards row 1: Квартиры -->
+{% if user.can_see_finance %}
+<!-- KPI row 1: Деньги — главное для владельца -->
+<div class="kpi-grid mb-4">
+  <div class="kpi-card">
+    <div class="kpi-icon bg-primary-soft"><i class="bi bi-cash-coin text-primary"></i></div>
+    <div class="kpi-body">
+      <div class="kpi-value">${{ month_income|floatformat:0|intcomma }}</div>
+      <div class="kpi-label">Получено в этом месяце</div>
+    </div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-icon bg-danger-soft"><i class="bi bi-receipt text-danger"></i></div>
+    <div class="kpi-body">
+      <div class="kpi-value text-danger">${{ month_expenses|floatformat:0|intcomma }}</div>
+      <div class="kpi-label">Потрачено в этом месяце</div>
+    </div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-icon {% if month_profit >= 0 %}bg-success-soft{% else %}bg-danger-soft{% endif %}">
+      <i class="bi bi-graph-up-arrow {% if month_profit >= 0 %}text-success{% else %}text-danger{% endif %}"></i>
+    </div>
+    <div class="kpi-body">
+      <div class="kpi-value {% if month_profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+        ${{ month_profit|floatformat:0|intcomma }}
+      </div>
+      <div class="kpi-label">Прибыль месяца</div>
+    </div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-icon bg-warning-soft"><i class="bi bi-exclamation-diamond text-warning"></i></div>
+    <div class="kpi-body">
+      <div class="kpi-value text-warning">${{ total_debt|floatformat:0|intcomma }}</div>
+      <div class="kpi-label">Долг клиентов ({{ clients_with_debt }} чел.)</div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- KPI row 2: Квартиры -->
 <div class="kpi-grid mb-4">
   <div class="kpi-card">
     <div class="kpi-icon bg-gold-soft"><i class="bi bi-buildings text-gold"></i></div>
@@ -62,108 +100,99 @@
   </div>
 </div>
 
-<!-- KPI cards row 2: Финансы -->
-{% if user.can_see_finance %}
-<div class="kpi-grid mb-4">
-  <div class="kpi-card">
-    <div class="kpi-icon bg-primary-soft"><i class="bi bi-cash-coin text-primary"></i></div>
-    <div class="kpi-body">
-      <div class="kpi-value">${{ month_income|floatformat:0|intcomma }}</div>
-      <div class="kpi-label">Доход этого месяца</div>
-    </div>
+<!-- Что нужно сделать сегодня -->
+<div class="crm-card mb-4">
+  <div class="card-header-crm">
+    <span class="card-title-crm"><i class="bi bi-check2-square text-gold me-2"></i>Что нужно сделать сегодня</span>
   </div>
-  <div class="kpi-card">
-    <div class="kpi-icon bg-danger-soft"><i class="bi bi-receipt text-danger"></i></div>
-    <div class="kpi-body">
-      <div class="kpi-value text-danger">${{ month_expenses|floatformat:0|intcomma }}</div>
-      <div class="kpi-label">Расходы этого месяца</div>
+  <div class="p-3">
+    {% if not overdue_items and not due_today_items and not expiring_items %}
+    <div class="text-muted py-3 text-center">
+      <i class="bi bi-check-circle text-success me-1"></i>Всё в порядке — срочных дел нет.
     </div>
-  </div>
-  <div class="kpi-card">
-    <div class="kpi-icon {% if month_profit >= 0 %}bg-success-soft{% else %}bg-danger-soft{% endif %}">
-      <i class="bi bi-graph-up-arrow {% if month_profit >= 0 %}text-success{% else %}text-danger{% endif %}"></i>
-    </div>
-    <div class="kpi-body">
-      <div class="kpi-value {% if month_profit >= 0 %}text-success{% else %}text-danger{% endif %}">
-        ${{ month_profit|floatformat:0|intcomma }}
-      </div>
-      <div class="kpi-label">Прибыль месяца</div>
-    </div>
-  </div>
-  <div class="kpi-card">
-    <div class="kpi-icon bg-warning-soft"><i class="bi bi-exclamation-diamond text-warning"></i></div>
-    <div class="kpi-body">
-      <div class="kpi-value text-warning">${{ total_debt|floatformat:0|intcomma }}</div>
-      <div class="kpi-label">Общий долг клиентов ({{ clients_with_debt }} чел.)</div>
-    </div>
-  </div>
-</div>
-{% endif %}
+    {% endif %}
 
-<!-- Charts + Sidebar info -->
-<div class="dashboard-grid">
-  {% if user.can_see_finance %}
-  <div class="dashboard-chart-card">
-    <div class="card-header-crm">
-      <span class="card-title-crm">Доходы и расходы (6 месяцев)</span>
+    {% for item in overdue_items %}
+    <div class="dash-info-row">
+      <span>
+        <i class="bi bi-exclamation-triangle-fill text-danger me-1"></i>
+        <strong>{{ item.sale.client.full_name }}</strong> просрочил ${{ item.amount|floatformat:0|intcomma }}
+        <span class="text-muted small">(кв. {{ item.sale.apartment.number }}, срок был {{ item.due_date|date:"d.m.Y" }})</span>
+      </span>
+      <a href="{% url 'sales:sale_detail' item.sale.pk %}" class="btn btn-sm btn-outline-danger">Открыть</a>
     </div>
-    <div class="chart-wrap">
-      <canvas id="incomeChart"></canvas>
-    </div>
-  </div>
-  {% endif %}
+    {% endfor %}
 
-  <div class="dashboard-side">
-    <!-- Quick stats -->
-    <div class="dash-info-card">
-      <div class="dash-info-title">Сегодня</div>
-      <div class="dash-info-row">
-        <span><i class="bi bi-calendar-check text-gold me-1"></i>Платежи сегодня</span>
-        <span class="badge bg-warning text-dark">{{ today_payments }}</span>
-      </div>
-      <div class="dash-info-row">
-        <span><i class="bi bi-exclamation-triangle text-danger me-1"></i>Просрочено</span>
-        <span class="badge bg-danger">{{ overdue }}</span>
-      </div>
-      <div class="dash-info-row">
-        <span><i class="bi bi-person-plus text-primary me-1"></i>Новые лиды</span>
-        <span class="badge bg-primary">{{ leads_new }}</span>
-      </div>
-      <div class="dash-info-row">
-        <span><i class="bi bi-telephone text-success me-1"></i>Перезвонить сегодня</span>
-        <span class="badge bg-success">{{ leads_callback }}</span>
-      </div>
+    {% for item in due_today_items %}
+    <div class="dash-info-row">
+      <span>
+        <i class="bi bi-calendar-check text-warning me-1"></i>
+        <strong>{{ item.sale.client.full_name }}</strong> должен оплатить сегодня ${{ item.amount|floatformat:0|intcomma }}
+        <span class="text-muted small">(кв. {{ item.sale.apartment.number }})</span>
+      </span>
+      <a href="{% url 'sales:sale_detail' item.sale.pk %}" class="btn btn-sm btn-outline-gold">Открыть</a>
     </div>
+    {% endfor %}
 
-    <!-- Budget status by block -->
-    {% if user.can_see_finance and blocks %}
-    <div class="dash-info-card mt-3">
-      <div class="dash-info-title">Бюджеты блоков</div>
-      {% for block in blocks %}
-      {% if block.budget_planned > 0 %}
-      <div class="mb-3">
-        <div class="d-flex justify-content-between mb-1">
-          <span class="small fw-semibold">{{ block.name }}</span>
-          <span class="small {% if block.is_over_budget %}text-danger{% else %}text-muted{% endif %}">
-            ${{ block.budget_actual|floatformat:0|intcomma }} / ${{ block.budget_planned|floatformat:0|intcomma }}
-          </span>
-        </div>
-        {% with pct=block.budget_actual|default_if_none:0 %}
-        <div class="progress" style="height: 6px;">
-          <div class="progress-bar {% if block.is_over_budget %}bg-danger{% else %}bg-gold{% endif %}"
-               style="width: {% widthratio block.budget_actual block.budget_planned 100 %}%"></div>
-        </div>
-        {% endwith %}
-        {% if block.is_over_budget %}
-        <div class="text-danger small mt-1">⚠️ Превышение бюджета!</div>
-        {% endif %}
-      </div>
-      {% endif %}
-      {% endfor %}
+    {% for item in expiring_items %}
+    <div class="dash-info-row">
+      <span>
+        <i class="bi bi-clock text-warning me-1"></i>
+        Бронь кв. {{ item.apartment.number }} (<strong>{{ item.client.full_name }}</strong>)
+        заканчивается {{ item.end_date|date:"d.m.Y" }}
+      </span>
+      <a href="{% url 'sales:bookings' %}" class="btn btn-sm btn-outline-gold">Открыть</a>
+    </div>
+    {% endfor %}
+
+    {% if leads_callback > 0 %}
+    <div class="dash-info-row">
+      <span>
+        <i class="bi bi-telephone text-success me-1"></i>
+        Перезвонить сегодня: <strong>{{ leads_callback }}</strong> потенц. покупателей
+      </span>
+      <a href="{% url 'clients:leads' %}" class="btn btn-sm btn-outline-gold">Открыть</a>
     </div>
     {% endif %}
   </div>
 </div>
+
+{% if user.can_see_finance %}
+<!-- График — спрятан в «Подробнее», чтобы не отвлекать -->
+<details class="crm-card mb-4 dash-details">
+  <summary class="card-header-crm" style="cursor:pointer">
+    <span class="card-title-crm"><i class="bi bi-bar-chart-line text-gold me-2"></i>Подробнее: доходы и расходы за 6 месяцев</span>
+  </summary>
+  <div class="chart-wrap p-3">
+    <canvas id="incomeChart"></canvas>
+  </div>
+
+  {% if blocks %}
+  <div class="p-3 pt-0">
+    <div class="dash-info-title">Бюджеты блоков</div>
+    {% for block in blocks %}
+    {% if block.budget_planned > 0 %}
+    <div class="mb-3">
+      <div class="d-flex justify-content-between mb-1">
+        <span class="small fw-semibold">{{ block.name }}</span>
+        <span class="small {% if block.is_over_budget %}text-danger{% else %}text-muted{% endif %}">
+          ${{ block.budget_actual|floatformat:0|intcomma }} / ${{ block.budget_planned|floatformat:0|intcomma }}
+        </span>
+      </div>
+      <div class="progress" style="height: 6px;">
+        <div class="progress-bar {% if block.is_over_budget %}bg-danger{% else %}bg-gold{% endif %}"
+             style="width: {% widthratio block.budget_actual block.budget_planned 100 %}%"></div>
+      </div>
+      {% if block.is_over_budget %}
+      <div class="text-danger small mt-1">⚠️ Превышение бюджета!</div>
+      {% endif %}
+    </div>
+    {% endif %}
+    {% endfor %}
+  </div>
+  {% endif %}
+</details>
+{% endif %}
 
 <!-- Recent sales -->
 {% if recent_sales %}
@@ -234,8 +263,14 @@
 {% block extra_js %}
 <script>
 {% if user.can_see_finance %}
-const ctx = document.getElementById('incomeChart');
-if (ctx) {
+// Chart lives inside <details> — initialize only when opened (Chart.js
+// renders at 0 width inside a closed <details>)
+var chartInited = false;
+function initIncomeChart() {
+  if (chartInited) return;
+  chartInited = true;
+  const ctx = document.getElementById('incomeChart');
+  if (!ctx) return;
   new Chart(ctx, {
     type: 'bar',
     data: {
@@ -281,6 +316,12 @@ if (ctx) {
         x: { grid: { display: false } }
       }
     }
+  });
+}
+var dashDetails = document.querySelector('.dash-details');
+if (dashDetails) {
+  dashDetails.addEventListener('toggle', function () {
+    if (dashDetails.open) initIncomeChart();
   });
 }
 {% endif %}

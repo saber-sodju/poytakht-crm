@@ -1,5 +1,6 @@
 from django.db import models
 from django.utils import timezone
+from core.validators import validate_image
 
 
 class Complex(models.Model):
@@ -115,7 +116,10 @@ class Apartment(models.Model):
     price_per_sqm = models.DecimalField(max_digits=12, decimal_places=2, verbose_name='Цена за м² ($)')
     total_price = models.DecimalField(max_digits=15, decimal_places=2, verbose_name='Общая цена ($)')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_FREE, verbose_name='Статус')
-    layout_image = models.ImageField(upload_to='layouts/', blank=True, null=True, verbose_name='Планировка')
+    layout_image = models.ImageField(
+        upload_to='layouts/', blank=True, null=True, verbose_name='Планировка',
+        validators=[validate_image],
+    )
     description = models.TextField(blank=True, verbose_name='Описание')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -193,7 +197,10 @@ class ConstructionStage(models.Model):
 class PhotoReport(models.Model):
     block = models.ForeignKey(Block, on_delete=models.CASCADE, related_name='photos', verbose_name='Блок')
     stage = models.ForeignKey(ConstructionStage, on_delete=models.SET_NULL, null=True, blank=True, verbose_name='Этап')
-    photo = models.ImageField(upload_to='construction/', verbose_name='Фото')
+    photo = models.ImageField(
+        upload_to='construction/', verbose_name='Фото',
+        validators=[validate_image],
+    )
     caption = models.CharField(max_length=300, blank=True, verbose_name='Подпись')
     uploaded_by = models.ForeignKey('accounts.CustomUser', on_delete=models.SET_NULL, null=True, verbose_name='Загрузил')
     created_at = models.DateTimeField(auto_now_add=True)

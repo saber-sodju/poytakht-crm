@@ -220,6 +220,10 @@ if not DEBUG:
 LOGIN_MAX_ATTEMPTS = 5
 LOGIN_LOCKOUT_MINUTES = 15
 
+# ── Business Rules ────────────────────────────────────────────────────────────
+# Expenses at or above this amount trigger a notification to all directors.
+LARGE_EXPENSE_THRESHOLD = int(_env('LARGE_EXPENSE_THRESHOLD', '5000'))
+
 # ── File Upload Security ──────────────────────────────────────────────────────
 FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024    # 5 MB max in memory
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024    # 5 MB max POST body

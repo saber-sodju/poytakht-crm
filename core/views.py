@@ -1,7 +1,45 @@
 import os
+from pathlib import Path
+from django.conf import settings
+from django.contrib.auth.decorators import login_required
+from django.http import FileResponse, Http404
 from django.shortcuts import render, redirect
 from django.views.decorators.cache import never_cache
 from django.templatetags.static import static as static_url
+
+
+@login_required
+def protected_media(request, path):
+    """
+    Serve /media/ files with access control.
+
+    - Staff members: full access.
+    - Client role: only receipts belonging to their own payments.
+    - Path traversal blocked via resolved-path check.
+    """
+    media_root = Path(settings.MEDIA_ROOT).resolve()
+    full_path = (media_root / path).resolve()
+
+    # Block ../../ traversal — resolved path must stay inside MEDIA_ROOT
+    if media_root not in full_path.parents:
+        raise Http404
+
+    if not full_path.is_file():
+        raise Http404
+
+    user = request.user
+    if user.is_client_role:
+        # Clients may only download receipts attached to their own payments
+        allowed = False
+        if path.startswith('receipts/') and hasattr(user, 'client_profile'):
+            from apps.payments.models import Payment
+            allowed = Payment.objects.filter(
+                receipt=path, sale__client=user.client_profile
+            ).exists()
+        if not allowed:
+            raise Http404   # 404, not 403 — don't reveal that the file exists
+
+    return FileResponse(open(full_path, 'rb'))
 
 
 @never_cache

@@ -7,18 +7,17 @@ python manage.py collectstatic --noinput
 echo "=== Running database migrations ==="
 python manage.py migrate --noinput
 
-echo "=== Checking if users exist ==="
-python manage.py shell -c "
-from apps.accounts.models import CustomUser
-count = CustomUser.objects.filter(role='director').count()
-if count == 0:
-    print('No director found — running seed_data to create demo accounts...')
-    from django.core.management import call_command
-    call_command('seed_data')
-    print('Done.')
-else:
-    print(f'Found {count} director(s) — skipping seed_data.')
-"
+# Create the first director from env vars if none exists (idempotent, prod-safe).
+# Set INITIAL_DIRECTOR_USERNAME + INITIAL_DIRECTOR_PASSWORD in Railway variables.
+echo "=== Ensuring director account exists ==="
+python manage.py create_initial_director
+
+# Demo data: ONLY when explicitly enabled (development / staging).
+# Never set RUN_SEED_DATA=1 in production — it creates weak demo passwords.
+if [ "${RUN_SEED_DATA:-0}" = "1" ]; then
+  echo "=== Loading seed data (demo accounts) ==="
+  python manage.py seed_data
+fi
 
 echo "=== Starting Gunicorn ==="
 exec gunicorn core.wsgi \
