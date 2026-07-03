@@ -153,12 +153,12 @@ def stage_update(request, block_pk):
 @login_required
 @staff_required
 def photo_add(request, block_pk):
-    block = get_object_or_404(Block, pk=block_pk)
-    form = PhotoReportForm(request.POST or None, request.FILES or None, initial={'block': block})
+    block_obj = get_object_or_404(Block, pk=block_pk)
+    form = PhotoReportForm(request.POST or None, request.FILES or None, initial={'block': block_obj})
     if request.method == 'POST' and form.is_valid():
         p = form.save(commit=False)
         p.uploaded_by = request.user
         p.save()
         messages.success(request, 'Фотоотчёт добавлен.')
         return redirect('complex:block_detail', pk=block_pk)
-    return render(request, 'complex/photo_form.html', {'form': form, 'block': block})
+    return render(request, 'complex/photo_form.html', {'form': form, 'block_obj': block_obj})
