@@ -1,6 +1,9 @@
 #!/bin/sh
 set -e
 
+echo "=== Creating media directories ==="
+mkdir -p media/construction media/layouts media/receipts media/expense_docs media/avatars
+
 echo "=== Collecting static files ==="
 python manage.py collectstatic --noinput
 

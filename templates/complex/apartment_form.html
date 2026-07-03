@@ -25,6 +25,8 @@
         <div class="mb-3">
           <label class="form-label">Планировка (фото)</label>
           {{ form.layout_image }}
+          {% if form.layout_image.errors %}<div class="text-danger small mt-1">{{ form.layout_image.errors }}</div>{% endif %}
+          <div class="text-muted small mt-1">Допустимые форматы: JPG, PNG, WEBP. Макс. 10 МБ.</div>
         </div>
         <div class="mb-3">
           <label class="form-label">Описание</label>
