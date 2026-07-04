@@ -159,6 +159,138 @@ class SaleServiceTests(TestCase):
         self.assertEqual(client.total_debt, Decimal('50000'))
 
 
+class IncomeAccountingTests(TestCase):
+    """Income must be counted from real Payments, never from Sale.total_price."""
+
+    def test_month_income_counts_payment_not_sale_total(self):
+        from django.db.models import Sum
+        director, apt, client = _base_data()
+        # 100000 sale, but client only paid 30000 up front
+        create_sale(
+            user=director, apartment_id=apt.pk, client=client,
+            total_price=Decimal('100000'), payment_type='installment',
+            initial_payment=Decimal('30000'),
+        )
+        # Dashboard computes income exactly this way
+        month_income = Payment.objects.aggregate(t=Sum('amount'))['t'] or 0
+        self.assertEqual(month_income, Decimal('30000'))   # not 100000
+
+    def test_sale_without_initial_payment_yields_zero_income(self):
+        from django.db.models import Sum
+        director, apt, client = _base_data()
+        create_sale(
+            user=director, apartment_id=apt.pk, client=client,
+            total_price=Decimal('100000'), payment_type='full',
+        )
+        month_income = Payment.objects.aggregate(t=Sum('amount'))['t'] or 0
+        self.assertEqual(month_income, 0)
+        # But the sale itself exists with a debt of the full price
+        sale = Sale.objects.get(apartment=apt)
+        self.assertEqual(sale.paid_amount, 0)
+        self.assertEqual(sale.debt, Decimal('100000'))
+
+
+class AuditLogIntegrationTests(TestCase):
+    """Business operations must record audit entries and never fail because of them."""
+
+    def test_create_sale_writes_audit_log(self):
+        from apps.audit.models import AuditLog
+        director, apt, client = _base_data()
+        sale = create_sale(
+            user=director, apartment_id=apt.pk, client=client,
+            total_price=Decimal('100000'), payment_type='full',
+        )
+        self.assertTrue(
+            AuditLog.objects.filter(
+                action=AuditLog.ACTION_CREATE, model_name='Sale', object_id=sale.pk
+            ).exists()
+        )
+
+    def test_initial_payment_writes_audit_log(self):
+        from apps.audit.models import AuditLog
+        director, apt, client = _base_data()
+        create_sale(
+            user=director, apartment_id=apt.pk, client=client,
+            total_price=Decimal('100000'), payment_type='installment',
+            initial_payment=Decimal('30000'),
+        )
+        self.assertTrue(
+            AuditLog.objects.filter(
+                action=AuditLog.ACTION_CREATE, model_name='Payment'
+            ).exists()
+        )
+
+    def test_cancel_sale_writes_audit_log_without_error(self):
+        from apps.audit.models import AuditLog
+        director, apt, client = _base_data()
+        sale = create_sale(
+            user=director, apartment_id=apt.pk, client=client,
+            total_price=Decimal('100000'), payment_type='full',
+        )
+        # Must not raise — ACTION_CANCEL and old_value/new_value must be supported
+        cancel_sale(user=director, sale=sale, reason='Тест')
+        self.assertTrue(
+            AuditLog.objects.filter(
+                action=AuditLog.ACTION_CANCEL, model_name='Sale', object_id=sale.pk
+            ).exists()
+        )
+
+    def test_log_action_never_raises(self):
+        """A broken audit call must return None, not blow up the caller."""
+        from apps.audit.models import log_action, AuditLog
+        director = User.objects.create_user(
+            username='d', password='x', role=CustomUser.ROLE_DIRECTOR)
+        # Passing every supported field, including old_value/new_value
+        entry = log_action(
+            user=director, action=AuditLog.ACTION_CANCEL,
+            model_name='Sale', object_id=1, object_repr='x',
+            description='d', old_value='a', new_value='b',
+        )
+        self.assertIsNotNone(entry)
+        self.assertEqual(entry.action, AuditLog.ACTION_CANCEL)
+
+
+class InitialDirectorCommandTests(TestCase):
+    """create_initial_director must be production-safe — no demo accounts."""
+
+    def test_no_env_vars_creates_no_user(self):
+        import os
+        from unittest import mock
+        from django.core.management import call_command
+        # Ensure the env is clean of the director vars
+        clean_env = {k: v for k, v in os.environ.items()
+                     if not k.startswith('INITIAL_DIRECTOR_')}
+        with mock.patch.dict(os.environ, clean_env, clear=True):
+            call_command('create_initial_director')
+        self.assertEqual(CustomUser.objects.count(), 0)
+
+    def test_does_not_create_demo_director(self):
+        import os
+        from unittest import mock
+        from django.core.management import call_command
+        clean_env = {k: v for k, v in os.environ.items()
+                     if not k.startswith('INITIAL_DIRECTOR_')}
+        with mock.patch.dict(os.environ, clean_env, clear=True):
+            call_command('create_initial_director')
+        # The publicly-known demo login must never be created automatically
+        self.assertFalse(CustomUser.objects.filter(username='director').exists())
+
+    def test_creates_director_from_env_vars(self):
+        import os
+        from unittest import mock
+        from django.core.management import call_command
+        env = {
+            'INITIAL_DIRECTOR_USERNAME': 'boss',
+            'INITIAL_DIRECTOR_PASSWORD': 'Str0ng-Pass-9182',
+            'INITIAL_DIRECTOR_NAME': 'Илхом Зарипов',
+        }
+        with mock.patch.dict(os.environ, env):
+            call_command('create_initial_director')
+        boss = CustomUser.objects.get(username='boss')
+        self.assertEqual(boss.role, CustomUser.ROLE_DIRECTOR)
+        self.assertTrue(boss.check_password('Str0ng-Pass-9182'))
+
+
 class ViewAccessTests(TestCase):
     """Backend-level access control — direct URL access must be blocked."""
 

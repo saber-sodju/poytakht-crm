@@ -16,21 +16,22 @@ echo "=== Ensuring director account exists ==="
 python manage.py create_initial_director
 
 # Demo data: ONLY when explicitly enabled (development / staging).
-# Never set RUN_SEED_DATA=1 in production — it creates weak demo passwords.
+# NEVER set RUN_SEED_DATA=1 in production — it creates demo accounts
+# with weak, publicly-known passwords (director / demo123456).
 if [ "${RUN_SEED_DATA:-0}" = "1" ]; then
-  echo "=== Loading seed data (demo accounts) ==="
+  echo "=== Loading seed data (demo accounts — DEV ONLY) ==="
   python manage.py seed_data
 fi
 
-# SAFETY NET for ephemeral databases (SQLite without a volume):
-# if after all of the above there is still no director, the DB is empty and
-# nobody could log in at all. Seed demo data so the system stays accessible.
-# Fix properly by attaching PostgreSQL (see README_PRODUCTION.md).
+# Non-destructive health check. We do NOT auto-seed demo data in production:
+# that would inject weak default credentials. If there is no director, the
+# operator must create one via INITIAL_DIRECTOR_* env vars (see README_PRODUCTION.md).
 DIRECTOR_EXISTS=$(python manage.py shell -c "from apps.accounts.models import CustomUser; print(1 if CustomUser.objects.filter(role='director').exists() else 0)" | tail -1)
 if [ "$DIRECTOR_EXISTS" = "0" ]; then
-  echo "!!! WARNING: database has no director (ephemeral DB?) — seeding demo data"
-  echo "!!! Attach PostgreSQL and set INITIAL_DIRECTOR_* vars for production."
-  python manage.py seed_data
+  echo "!!! WARNING: no director account exists."
+  echo "!!! Set INITIAL_DIRECTOR_USERNAME and INITIAL_DIRECTOR_PASSWORD in the"
+  echo "!!! environment and redeploy, or run 'python manage.py seed_data' locally."
+  echo "!!! Refusing to auto-create demo accounts in production for security."
 fi
 
 echo "=== Starting Gunicorn ==="

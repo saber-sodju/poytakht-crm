@@ -25,15 +25,26 @@
             {% endfor %}
           </div>
           <div class="col-md-6">
-            {% for field in form %}
-            {% if field.name in 'total_price,payment_type' %}
             <div class="mb-3">
-              <label class="form-label fw-semibold">{{ field.label }}</label>
-              {{ field }}
-              {% if field.errors %}<div class="text-danger small">{{ field.errors }}</div>{% endif %}
+              <label class="form-label fw-semibold">{{ form.total_price.label }}</label>
+              {{ form.total_price }}
+              {% if form.total_price.errors %}<div class="text-danger small">{{ form.total_price.errors }}</div>{% endif %}
             </div>
-            {% endif %}
-            {% endfor %}
+            <div class="mb-3">
+              <label class="form-label fw-semibold">{{ form.payment_type.label }}</label>
+              {{ form.payment_type }}
+              {% if form.payment_type.errors %}<div class="text-danger small">{{ form.payment_type.errors }}</div>{% endif %}
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-6">
+            <div class="mb-3">
+              <label class="form-label fw-semibold">{{ form.initial_payment.label }}</label>
+              {{ form.initial_payment }}
+              {% if form.initial_payment.errors %}<div class="text-danger small">{{ form.initial_payment.errors }}</div>{% endif %}
+              {% if form.initial_payment.help_text %}<div class="form-text small text-muted">{{ form.initial_payment.help_text }}</div>{% endif %}
+            </div>
           </div>
         </div>
         <div class="row">
