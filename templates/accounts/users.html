@@ -28,7 +28,14 @@
             <span class="badge bg-danger">Отключён</span>
             {% endif %}
           </td>
-          <td><a href="{% url 'accounts:user_edit' u.pk %}" class="btn btn-sm btn-outline-gold">Редактировать</a></td>
+          <td class="d-flex gap-1">
+            <a href="{% url 'accounts:user_edit' u.pk %}" class="btn btn-sm btn-outline-gold">Редактировать</a>
+            {% if u.is_active %}
+            <a href="{% url 'accounts:user_deactivate' u.pk %}" class="btn btn-sm btn-outline-danger">Деактивировать</a>
+            {% else %}
+            <a href="{% url 'accounts:user_activate' u.pk %}" class="btn btn-sm btn-outline-success">Активировать</a>
+            {% endif %}
+          </td>
         </tr>
         {% endfor %}
       </tbody>

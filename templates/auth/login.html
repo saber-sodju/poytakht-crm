@@ -30,6 +30,10 @@
           <label class="form-label text-muted small">Пароль</label>
           {{ form.password }}
         </div>
+        <div class="form-check mb-4">
+          {{ form.remember_me }}
+          <label class="form-check-label text-muted small" for="{{ form.remember_me.id_for_label }}">Запомнить меня на 30 дней</label>
+        </div>
         <button type="submit" class="btn btn-gold w-100 py-3 fw-bold">
           Войти в систему
         </button>

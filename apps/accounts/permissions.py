@@ -119,13 +119,16 @@ def can_change_apartment_price(user) -> bool:
 # ── User management ────────────────────────────────────────────────────────────
 
 def can_manage_user(actor, target_user) -> bool:
-    """Director can manage all users except other directors (safety)."""
-    if actor.role != CustomUser.ROLE_DIRECTOR:
-        return False
-    # Prevent non-superusers from demoting/removing other directors
-    if target_user.role == CustomUser.ROLE_DIRECTOR and not actor.is_superuser:
-        return actor == target_user  # can only edit yourself
-    return True
+    """Director can manage all users except other directors (safety).
+    Admin can only manage managers and accountants."""
+    if actor.role == CustomUser.ROLE_DIRECTOR:
+        # Prevent non-superusers from demoting/removing other directors
+        if target_user.role == CustomUser.ROLE_DIRECTOR and not actor.is_superuser:
+            return actor == target_user  # can only edit yourself
+        return True
+    if actor.role == CustomUser.ROLE_ADMIN:
+        return target_user.role in (CustomUser.ROLE_MANAGER, CustomUser.ROLE_ACCOUNTANT)
+    return False
 
 
 # ── Construction section ───────────────────────────────────────────────────────

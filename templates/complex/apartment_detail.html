@@ -35,7 +35,12 @@
     <div class="crm-card mb-3">
       <div class="card-header-crm">
         <span class="card-title-crm">Информация о квартире</span>
-        <span class="badge bg-{{ apt.status_color }} fs-6">{{ apt.get_status_display }}</span>
+        <span class="d-flex gap-2">
+          <span class="badge bg-{{ apt.status_color }} fs-6">{{ apt.get_status_display }}</span>
+          {% if apt.payment_badge %}
+          <span class="badge bg-{{ apt.payment_badge.color }} fs-6">{{ apt.payment_badge.label }}</span>
+          {% endif %}
+        </span>
       </div>
       <div class="detail-rows">
         <div class="detail-row"><span>Номер</span><strong>{{ apt.number }}</strong></div>

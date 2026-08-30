@@ -52,6 +52,41 @@ class ApartmentForm(forms.ModelForm):
         }
 
 
+class BulkApartmentForm(forms.Form):
+    floor_from = forms.IntegerField(
+        label='Этаж с', min_value=1,
+        widget=forms.NumberInput(attrs={'class': 'form-control'}),
+    )
+    floor_to = forms.IntegerField(
+        label='Этаж по', min_value=1,
+        widget=forms.NumberInput(attrs={'class': 'form-control'}),
+    )
+    apartments_per_floor = forms.IntegerField(
+        label='Квартир на этаже', min_value=1,
+        widget=forms.NumberInput(attrs={'class': 'form-control'}),
+    )
+    apartment_type = forms.ChoiceField(
+        label='Тип', choices=Apartment.TYPE_CHOICES,
+        widget=forms.Select(attrs={'class': 'form-select'}),
+    )
+    area = forms.DecimalField(
+        label='Площадь (м²)', min_value=0, max_digits=8, decimal_places=2,
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+    )
+    price_per_sqm = forms.DecimalField(
+        label='Цена за м² ($)', min_value=0, max_digits=12, decimal_places=2,
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+    )
+
+    def clean(self):
+        cleaned = super().clean()
+        floor_from = cleaned.get('floor_from')
+        floor_to = cleaned.get('floor_to')
+        if floor_from is not None and floor_to is not None and floor_to < floor_from:
+            self.add_error('floor_to', 'Этаж "по" не может быть меньше этажа "с".')
+        return cleaned
+
+
 class ConstructionStageForm(forms.ModelForm):
     class Meta:
         model = ConstructionStage

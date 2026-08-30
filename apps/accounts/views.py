@@ -9,7 +9,8 @@ from django.http import JsonResponse
 
 from .models import CustomUser, Notification
 from .forms import LoginForm, UserCreateForm, UserEditForm
-from .decorators import director_required, staff_required
+from .decorators import director_or_admin_required, staff_required
+from .permissions import can_manage_user
 
 logger = logging.getLogger('apps.accounts')
 
@@ -52,6 +53,8 @@ def login_view(request):
             user = form.get_user()
             login(request, user)
             cache.delete(cache_key)     # reset attempts on success
+            if form.cleaned_data.get('remember_me'):
+                request.session.set_expiry(60 * 60 * 24 * 30)  # 30 дней
             logger.info('User %s logged in from %s', user.username, ip)
             next_url = request.GET.get('next', '')
             # Guard against open redirect: only allow relative URLs
@@ -87,16 +90,19 @@ def logout_view(request):
 
 
 @login_required
-@director_required
+@director_or_admin_required
 def users_list(request):
     users = CustomUser.objects.all().order_by('role', 'last_name')
+    if request.user.is_admin:
+        # Admin only sees the accounts they're allowed to manage.
+        users = users.filter(role__in=[CustomUser.ROLE_MANAGER, CustomUser.ROLE_ACCOUNTANT])
     return render(request, 'accounts/users.html', {'users': users})
 
 
 @login_required
-@director_required
+@director_or_admin_required
 def user_create(request):
-    form = UserCreateForm(request.POST or None)
+    form = UserCreateForm(request.POST or None, actor=request.user)
     if request.method == 'POST' and form.is_valid():
         user = form.save()
         from apps.audit.models import log_action, AuditLog
@@ -113,11 +119,14 @@ def user_create(request):
 
 
 @login_required
-@director_required
+@director_or_admin_required
 def user_edit(request, pk):
     user = get_object_or_404(CustomUser, pk=pk)
+    if not can_manage_user(request.user, user):
+        messages.error(request, 'У вас нет доступа к этому пользователю.')
+        return redirect('accounts:users')
     old_role = user.role
-    form = UserEditForm(request.POST or None, request.FILES or None, instance=user)
+    form = UserEditForm(request.POST or None, request.FILES or None, instance=user, actor=request.user)
     if request.method == 'POST' and form.is_valid():
         updated = form.save()
         if updated.role != old_role:
@@ -136,6 +145,52 @@ def user_edit(request, pk):
         'title': f'Редактировать: {user.username}',
         'object': user,
     })
+
+
+@login_required
+@director_or_admin_required
+def user_deactivate(request, pk):
+    user = get_object_or_404(CustomUser, pk=pk)
+    if not can_manage_user(request.user, user):
+        messages.error(request, 'У вас нет доступа к этому пользователю.')
+        return redirect('accounts:users')
+    if request.method == 'POST':
+        user.is_active = False
+        user.save(update_fields=['is_active'])
+        from apps.audit.models import log_action, AuditLog
+        log_action(
+            user=request.user, action=AuditLog.ACTION_UPDATE,
+            model_name='CustomUser', object_id=user.pk,
+            object_repr=str(user),
+            description=f'Пользователь деактивирован: {user.username}',
+            request=request,
+        )
+        messages.success(request, f'Пользователь {user.username} деактивирован.')
+        return redirect('accounts:users')
+    return render(request, 'accounts/user_confirm_deactivate.html', {'target_user': user, 'activate': False})
+
+
+@login_required
+@director_or_admin_required
+def user_activate(request, pk):
+    user = get_object_or_404(CustomUser, pk=pk)
+    if not can_manage_user(request.user, user):
+        messages.error(request, 'У вас нет доступа к этому пользователю.')
+        return redirect('accounts:users')
+    if request.method == 'POST':
+        user.is_active = True
+        user.save(update_fields=['is_active'])
+        from apps.audit.models import log_action, AuditLog
+        log_action(
+            user=request.user, action=AuditLog.ACTION_UPDATE,
+            model_name='CustomUser', object_id=user.pk,
+            object_repr=str(user),
+            description=f'Пользователь активирован: {user.username}',
+            request=request,
+        )
+        messages.success(request, f'Пользователь {user.username} снова активен.')
+        return redirect('accounts:users')
+    return render(request, 'accounts/user_confirm_deactivate.html', {'target_user': user, 'activate': True})
 
 
 @login_required

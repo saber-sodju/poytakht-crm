@@ -398,6 +398,7 @@ body { margin: 0; font-family: 'Arial', sans-serif; background: #f0ebe0; color: 
 }
 .floor-apartments { display: flex; flex-wrap: wrap; gap: 6px; }
 .apt-cell {
+  position: relative;
   width: 48px; height: 38px;
   border-radius: 8px;
   font-size: 11px; font-weight: 700;
@@ -416,6 +417,16 @@ body { margin: 0; font-family: 'Arial', sans-serif; background: #f0ebe0; color: 
 .apt-sold:hover { background: rgba(220,53,69,0.25); }
 .apt-unavailable { background: rgba(108,117,125,0.12); border-color: #6c757d; color: #495057; }
 .apt-add { background: var(--gold-soft); border-color: var(--gold); color: var(--gold-dark); text-decoration: none; font-size: 18px; }
+/* Additive marker — apartment sold on installment/mortgage, not fully paid off yet. Doesn't replace the status color, just flags it. */
+.apt-credit-flag::after {
+  content: '';
+  position: absolute;
+  top: -3px; right: -3px;
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  background: #fd7e14;
+  border: 1.5px solid #fff;
+}
 .apt-add:hover { background: rgba(212,175,55,0.25); color: var(--gold-dark); }
 
 .apt-legend { display: flex; gap: 16px; flex-wrap: wrap; }

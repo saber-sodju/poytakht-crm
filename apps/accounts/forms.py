@@ -2,6 +2,9 @@ from django import forms
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 from .models import CustomUser
 
+# Roles a "Главный администратор" (not a director) is allowed to create/edit.
+ADMIN_MANAGEABLE_ROLES = [CustomUser.ROLE_MANAGER, CustomUser.ROLE_ACCOUNTANT]
+
 
 class LoginForm(AuthenticationForm):
     username = forms.CharField(
@@ -11,6 +14,10 @@ class LoginForm(AuthenticationForm):
     password = forms.CharField(
         label='Пароль',
         widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': '••••••••'})
+    )
+    remember_me = forms.BooleanField(
+        label='Запомнить меня', required=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
     )
 
 
@@ -27,10 +34,14 @@ class UserCreateForm(UserCreationForm):
             'role': forms.Select(attrs={'class': 'form-select'}),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, actor=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['password1'].widget.attrs['class'] = 'form-control'
         self.fields['password2'].widget.attrs['class'] = 'form-control'
+        if actor is not None and actor.is_admin:
+            self.fields['role'].choices = [
+                c for c in CustomUser.ROLE_CHOICES if c[0] in ADMIN_MANAGEABLE_ROLES
+            ]
 
 
 class UserEditForm(forms.ModelForm):
@@ -45,3 +56,10 @@ class UserEditForm(forms.ModelForm):
             'phone': forms.TextInput(attrs={'class': 'form-control'}),
             'role': forms.Select(attrs={'class': 'form-select'}),
         }
+
+    def __init__(self, *args, actor=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if actor is not None and actor.is_admin:
+            self.fields['role'].choices = [
+                c for c in CustomUser.ROLE_CHOICES if c[0] in ADMIN_MANAGEABLE_ROLES
+            ]

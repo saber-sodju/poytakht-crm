@@ -152,7 +152,7 @@
       <i class="bi bi-clock-history"></i><span>История активности</span>
     </a>
     {% endif %}
-    {% if user.is_director %}
+    {% if user.can_manage_users %}
     <!-- Сотрудники -->
     <a href="{% url 'accounts:users' %}"
        class="nav-item {% if app == 'accounts' and 'user' in uname %}active{% endif %}">
