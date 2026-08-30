@@ -5,7 +5,11 @@ from django.db.models import Count, Q
 from django.http import JsonResponse
 
 from .models import Complex, Block, Floor, Apartment, ConstructionStage, PhotoReport
-from .forms import ComplexForm, BlockForm, FloorForm, ApartmentForm, ConstructionStageForm, PhotoReportForm
+from .forms import (
+    ComplexForm, BlockForm, FloorForm, ApartmentForm,
+    BulkApartmentForm, ConstructionStageForm, PhotoReportForm,
+)
+from .services import bulk_generate_apartments
 from apps.accounts.decorators import staff_required
 
 
@@ -131,8 +135,33 @@ def apartment_api(request, pk):
         'block': apt.block.name,
         'detail_url': f'/complex/apartments/{apt.pk}/',
         'client_name': sale.client.full_name if sale else (booking.client.full_name if booking else None),
+        'payment_badge': apt.payment_badge,
     }
     return JsonResponse(data)
+
+
+@login_required
+@staff_required
+def bulk_generate(request, block_pk):
+    block = get_object_or_404(Block, pk=block_pk)
+    form = BulkApartmentForm(request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        cd = form.cleaned_data
+        created = bulk_generate_apartments(
+            block=block,
+            floor_from=cd['floor_from'],
+            floor_to=cd['floor_to'],
+            apartments_per_floor=cd['apartments_per_floor'],
+            apartment_type=cd['apartment_type'],
+            area=cd['area'],
+            price_per_sqm=cd['price_per_sqm'],
+        )
+        if created:
+            messages.success(request, f'Создано квартир: {len(created)}.')
+        else:
+            messages.warning(request, 'Новых квартир не создано — все номера на этих этажах уже заняты.')
+        return redirect('complex:block_detail', pk=block_pk)
+    return render(request, 'complex/bulk_generate.html', {'form': form, 'block_obj': block})
 
 
 @login_required

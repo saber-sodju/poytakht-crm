@@ -19,6 +19,7 @@
   <div class="d-flex gap-2">
     <a href="{% url 'complex:floor_create' block_obj.pk %}" class="btn btn-outline-gold">+ Этаж</a>
     <a href="{% url 'complex:apartment_create' %}" class="btn btn-gold">+ Квартира</a>
+    <a href="{% url 'complex:bulk_generate' block_obj.pk %}" class="btn btn-outline-gold">Массовое создание</a>
   </div>
   {% endif %}
 </div>
@@ -48,6 +49,7 @@
       <span class="legend-item"><span class="legend-dot bg-warning"></span>Забронирована</span>
       <span class="legend-item"><span class="legend-dot bg-danger"></span>Продана</span>
       <span class="legend-item"><span class="legend-dot bg-secondary"></span>Недоступна</span>
+      <span class="legend-item"><span class="legend-dot" style="background:#fd7e14;"></span>Есть остаток по рассрочке/ипотеке</span>
     </div>
   </div>
   <div class="apt-map" id="aptMap">
@@ -56,10 +58,10 @@
       <div class="floor-label">Этаж {{ floor.number }}</div>
       <div class="floor-apartments">
         {% for apt in floor.apartments.all %}
-        <button class="apt-cell apt-{{ apt.status }}"
+        <button class="apt-cell apt-{{ apt.status }}{% if apt.payment_badge %} apt-credit-flag{% endif %}"
                 data-apt-id="{{ apt.pk }}"
                 data-apt-url="{% url 'complex:apartment_api' apt.pk %}"
-                title="Кв. {{ apt.number }} — {{ apt.get_status_display }}">
+                title="Кв. {{ apt.number }} — {{ apt.get_status_display }}{% if apt.payment_badge %} ({{ apt.payment_badge.label }}){% endif %}">
           {{ apt.number }}
         </button>
         {% empty %}
@@ -160,6 +162,7 @@ document.querySelectorAll('.apt-cell[data-apt-id]').forEach(btn => {
       document.getElementById('aptModalBody').innerHTML = `
         <div class="apt-modal-info">
           <div class="apt-modal-row"><span>Статус</span><span class="badge bg-${statusColors[data.status]}">${data.status_display}</span></div>
+          ${data.payment_badge ? `<div class="apt-modal-row"><span>Оплата</span><span class="badge bg-${data.payment_badge.color}">${data.payment_badge.label}</span></div>` : ''}
           <div class="apt-modal-row"><span>Блок / Этаж</span><span>${data.block}, этаж ${data.floor}</span></div>
           <div class="apt-modal-row"><span>Тип</span><span>${data.type}</span></div>
           <div class="apt-modal-row"><span>Площадь</span><span>${data.area} м²</span></div>

@@ -14,6 +14,7 @@ from apps.clients.models import Client
 from apps.complex.models import Complex, Block, Floor, Apartment
 from apps.sales.models import Sale, Booking
 from apps.sales.services import create_sale, create_booking, cancel_booking, cancel_sale
+from apps.complex.services import bulk_generate_apartments
 from apps.payments.models import Payment
 
 User = get_user_model()
@@ -157,6 +158,42 @@ class SaleServiceTests(TestCase):
         self.assertEqual(sale.paid_amount, Decimal('50000'))
         self.assertEqual(sale.debt, Decimal('50000'))
         self.assertEqual(client.total_debt, Decimal('50000'))
+
+
+class BulkGenerateApartmentsTests(TestCase):
+
+    def _block(self):
+        cplx = Complex.objects.create(name='Test', address='Addr')
+        return Block.objects.create(complex=cplx, name='A')
+
+    def test_creates_floors_and_apartments(self):
+        block = self._block()
+        created = bulk_generate_apartments(
+            block=block, floor_from=1, floor_to=2, apartments_per_floor=3,
+            apartment_type='2', area=Decimal('50'), price_per_sqm=Decimal('1000'),
+        )
+        self.assertEqual(len(created), 6)
+        self.assertEqual(Floor.objects.filter(block=block).count(), 2)
+        self.assertEqual(Apartment.objects.filter(floor__block=block).count(), 6)
+        apt = Apartment.objects.filter(floor__block=block).first()
+        self.assertEqual(apt.total_price, Decimal('50000'))
+        self.assertEqual(apt.status, Apartment.STATUS_FREE)
+
+    def test_rerun_skips_existing_numbers_no_duplicates(self):
+        block = self._block()
+        bulk_generate_apartments(
+            block=block, floor_from=1, floor_to=1, apartments_per_floor=2,
+            apartment_type='1', area=Decimal('40'), price_per_sqm=Decimal('1000'),
+        )
+        # Manually free up capacity by generating again on the same range —
+        # existing numbers must not be duplicated.
+        second = bulk_generate_apartments(
+            block=block, floor_from=1, floor_to=1, apartments_per_floor=2,
+            apartment_type='1', area=Decimal('40'), price_per_sqm=Decimal('1000'),
+        )
+        numbers = list(Apartment.objects.filter(floor__block=block).values_list('number', flat=True))
+        self.assertEqual(len(numbers), len(set(numbers)))  # no duplicates
+        self.assertEqual(len(second), 2)  # continues past the already-used numbers
 
 
 class IncomeAccountingTests(TestCase):

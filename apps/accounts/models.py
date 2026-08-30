@@ -96,8 +96,9 @@ class CustomUser(AbstractUser):
 
     @property
     def can_manage_users(self):
-        """Create, edit, delete system users — directors only."""
-        return self.role == self.ROLE_DIRECTOR
+        """Create, edit, deactivate system users — directors fully,
+        admins only for managers/accountants (see permissions.can_manage_user)."""
+        return self.role in (self.ROLE_DIRECTOR, self.ROLE_ADMIN)
 
     @property
     def can_manage_sales(self):

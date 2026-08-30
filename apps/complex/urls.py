@@ -10,6 +10,7 @@ urlpatterns = [
     path('blocks/create/', views.block_create, name='block_create'),
     path('blocks/<int:pk>/', views.block_detail, name='block_detail'),
     path('blocks/<int:block_pk>/floors/add/', views.floor_create, name='floor_create'),
+    path('blocks/<int:block_pk>/bulk-generate/', views.bulk_generate, name='bulk_generate'),
     path('blocks/<int:block_pk>/stages/update/', views.stage_update, name='stage_update'),
     path('blocks/<int:block_pk>/photos/add/', views.photo_add, name='photo_add'),
     path('apartments/create/', views.apartment_create, name='apartment_create'),

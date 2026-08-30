@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if activate %}Активировать{% else %}Деактивировать{% endif %} пользователя{% endblock %}
+
+{% block content %}
+<div class="page-header"><h1 class="page-title">{% if activate %}Активировать{% else %}Деактивировать{% endif %} пользователя</h1></div>
+<div class="form-card text-center">
+  {% if activate %}
+  <i class="bi bi-person-check text-success fs-1 mb-3 d-block"></i>
+  <h5>Снова включить доступ для {{ target_user.username }}?</h5>
+  <p class="text-muted">{{ target_user.get_full_name|default:target_user.username }} — {{ target_user.get_role_display }}. Пользователь сможет войти в систему.</p>
+  {% else %}
+  <i class="bi bi-person-x text-danger fs-1 mb-3 d-block"></i>
+  <h5>Деактивировать {{ target_user.username }}?</h5>
+  <p class="text-muted">{{ target_user.get_full_name|default:target_user.username }} — {{ target_user.get_role_display }}. Пользователь не сможет войти в систему, но его продажи, платежи и другие записи сохранятся. Это можно отменить в любой момент.</p>
+  {% endif %}
+  <form method="post" class="d-flex gap-2 justify-content-center mt-4">
+    {% csrf_token %}
+    <button type="submit" class="btn {% if activate %}btn-success{% else %}btn-danger{% endif %} px-4">
+      {% if activate %}Активировать{% else %}Деактивировать{% endif %}
+    </button>
+    <a href="{% url 'accounts:users' %}" class="btn btn-outline-secondary">Отмена</a>
+  </form>
+</div>
+{% endblock %}

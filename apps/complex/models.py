@@ -153,6 +153,24 @@ class Apartment(models.Model):
     def active_booking(self):
         return self.booking if hasattr(self, 'booking') else None
 
+    @property
+    def payment_badge(self):
+        """
+        Extra display-only badge for apartments sold on installment/mortgage
+        that aren't fully paid off yet, e.g. "Рассрочка — осталось $1 234".
+        Does NOT change `status` (stays 'sold') — purely derived from the
+        related Sale so the free/booked/sold counters and sale guards
+        elsewhere in the app keep working unchanged.
+        """
+        from apps.sales.models import Sale
+        sale = self.active_sale
+        if not sale or sale.payment_type == Sale.PAYMENT_FULL or sale.is_paid_fully:
+            return None
+        return {
+            'label': f'{sale.get_payment_type_display()} — осталось ${sale.remaining_amount:,.0f}',
+            'color': 'info' if sale.payment_type == Sale.PAYMENT_MORTGAGE else 'warning',
+        }
+
 
 class ConstructionStage(models.Model):
     STAGE_CHOICES = [
