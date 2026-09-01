@@ -1,0 +1,24 @@
+{% load static %}
+<!-- App-launch splash — shown once per browser session (see crm.js), not on
+     every internal navigation. Starts hidden via inline style so a repeat
+     page load never flashes it before the gate script below runs. -->
+<div class="app-splash" id="appSplash" style="display:none">
+  <img src="{% static 'pwa/icons/icon-512.png' %}" alt="Пойтахт Иншоот" class="app-splash-logo" />
+  <div class="app-splash-sub">CRM / ERP Система</div>
+  <div class="app-splash-rule"></div>
+</div>
+<script>
+(function () {
+  var el = document.getElementById('appSplash');
+  if (!el) return;
+  try {
+    if (sessionStorage.getItem('splashShown')) { return; }   // already seen this session
+    sessionStorage.setItem('splashShown', '1');
+  } catch (e) { /* sessionStorage blocked (private mode) — fall through and show it once anyway */ }
+  el.style.display = 'flex';
+  el.addEventListener('click', function () { el.classList.add('app-splash-skip'); });
+  el.addEventListener('animationend', function (e) {
+    if (e.target === el) el.remove();
+  });
+})();
+</script>

@@ -27,6 +27,7 @@
   <link rel="stylesheet" href="{% static 'css/crm.css' %}" />
 </head>
 <body>
+{% include 'pwa/splash.html' %}
 
 {% if user.is_authenticated %}
 <!-- Sidebar -->

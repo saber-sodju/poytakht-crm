@@ -24,6 +24,58 @@
 html { scroll-behavior: smooth; }
 body { margin: 0; font-family: 'Arial', sans-serif; background: #f0ebe0; color: #1a1611; }
 
+/* ── App-launch splash ──────────────────────────────────────────────────────
+   Plays once per browser session (gated in templates/pwa/splash.html), not
+   on every internal navigation. transform/opacity only — no width/top/left,
+   so it stays cheap even on low-end phones. */
+.app-splash {
+  position: fixed; inset: 0; z-index: 20000;
+  flex-direction: column; align-items: center; justify-content: center;
+  background: radial-gradient(circle at 50% 42%, var(--dark-2) 0%, var(--dark) 75%);
+  cursor: pointer;
+  animation: splashOut 0.55s ease 1.75s forwards;
+}
+.app-splash.app-splash-skip { animation: splashOut 0.35s ease forwards; }
+.app-splash-logo {
+  width: min(38vw, 176px);
+  height: auto;
+  border-radius: 22px;
+  filter: drop-shadow(0 18px 40px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 32px rgba(212, 175, 55, 0.18));
+  opacity: 0;
+  transform: scale(0.8);
+  animation: splashLogoIn 0.65s cubic-bezier(0.16, 1, 0.3, 1) 0.15s forwards;
+}
+.app-splash-sub {
+  margin-top: 22px;
+  color: var(--gold-light);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0;
+  transform: translateY(8px);
+  animation: splashTextIn 0.5s ease 0.6s forwards;
+}
+.app-splash-rule {
+  margin-top: 14px;
+  width: 72px; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  transform: scaleX(0);
+  animation: splashRuleIn 0.6s ease 0.8s forwards;
+}
+@keyframes splashLogoIn { to { opacity: 1; transform: scale(1); } }
+@keyframes splashTextIn { to { opacity: 1; transform: translateY(0); } }
+@keyframes splashRuleIn { to { transform: scaleX(1); } }
+@keyframes splashOut { to { opacity: 0; visibility: hidden; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .app-splash { animation: splashOut 0.3s ease 0.4s forwards; }
+  .app-splash.app-splash-skip { animation: splashOut 0.2s ease forwards; }
+  .app-splash-logo, .app-splash-sub, .app-splash-rule {
+    animation: none !important; opacity: 1; transform: none;
+  }
+}
+
 /* ---- SCROLLBAR ---- */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: #f5f0e7; }
