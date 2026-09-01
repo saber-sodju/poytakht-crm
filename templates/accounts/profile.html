@@ -16,5 +16,8 @@
     {% if object.phone %}<div class="detail-row"><span>Телефон</span><strong>{{ object.phone }}</strong></div>{% endif %}
     <div class="detail-row"><span>В системе с</span><strong>{{ object.date_joined|date:"d.m.Y" }}</strong></div>
   </div>
+  <div class="p-3 border-top text-center">
+    <a href="{% url 'accounts:password_change' %}" class="btn btn-outline-gold btn-sm">Сменить пароль</a>
+  </div>
 </div>
 {% endblock %}

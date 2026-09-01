@@ -1,5 +1,5 @@
 from django import forms
-from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
+from django.contrib.auth.forms import AuthenticationForm, UserCreationForm, PasswordChangeForm, SetPasswordForm
 from .models import CustomUser
 
 # Roles a "Главный администратор" (not a director) is allowed to create/edit.
@@ -63,3 +63,21 @@ class UserEditForm(forms.ModelForm):
             self.fields['role'].choices = [
                 c for c in CustomUser.ROLE_CHOICES if c[0] in ADMIN_MANAGEABLE_ROLES
             ]
+
+
+class StyledPasswordChangeForm(PasswordChangeForm):
+    """Self-service password change — same Bootstrap styling as the rest of the app."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs['class'] = 'form-control'
+
+
+class StyledSetPasswordForm(SetPasswordForm):
+    """Director/admin setting a new password for a managed user."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs['class'] = 'form-control'

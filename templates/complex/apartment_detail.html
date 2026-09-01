@@ -19,6 +19,7 @@
   <div class="d-flex gap-2">
     {% if user.can_manage_complex %}
     <a href="{% url 'complex:apartment_edit' apt.pk %}" class="btn btn-outline-gold">Редактировать</a>
+    <a href="{% url 'complex:apartment_delete' apt.pk %}" class="btn btn-outline-danger">Удалить</a>
     {% endif %}
     {% if apt.status == 'free' %}
     <a href="{% url 'sales:booking_create' %}?apt={{ apt.pk }}" class="btn btn-warning text-dark fw-semibold">Забронировать</a>

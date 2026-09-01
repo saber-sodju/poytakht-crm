@@ -8,6 +8,16 @@ from django.views.decorators.cache import never_cache
 from django.templatetags.static import static as static_url
 
 
+def _can_access_media(user, path) -> bool:
+    """Staff: full access. Client role: only receipts on their own payments."""
+    if not user.is_client_role:
+        return True
+    if path.startswith('receipts/') and hasattr(user, 'client_profile'):
+        from apps.payments.models import Payment
+        return Payment.objects.filter(receipt=path, sale__client=user.client_profile).exists()
+    return False
+
+
 @login_required
 def protected_media(request, path):
     """
@@ -15,29 +25,44 @@ def protected_media(request, path):
 
     - Staff members: full access.
     - Client role: only receipts belonging to their own payments.
-    - Path traversal blocked via resolved-path check.
+    - Path traversal blocked via resolved-path check (local-disk mode).
+
+    When USE_S3_MEDIA is on, files live in the S3-compatible bucket instead
+    of local disk — access is checked the same way, then the browser is
+    redirected to a short-lived signed URL instead of streaming the file
+    through Django.
     """
+    if not _can_access_media(request.user, path):
+        raise Http404   # 404, not 403 — don't reveal that the file exists
+
+    if getattr(settings, 'USE_S3_MEDIA', False):
+        import boto3
+        from botocore.exceptions import ClientError
+        s3 = boto3.client(
+            's3',
+            endpoint_url=settings.AWS_S3_ENDPOINT_URL,
+            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+            region_name=settings.AWS_S3_REGION_NAME,
+        )
+        try:
+            url = s3.generate_presigned_url(
+                'get_object',
+                Params={'Bucket': settings.AWS_STORAGE_BUCKET_NAME, 'Key': path},
+                ExpiresIn=60,   # link only needs to survive the redirect
+            )
+        except ClientError:
+            raise Http404
+        return redirect(url)
+
     media_root = Path(settings.MEDIA_ROOT).resolve()
     full_path = (media_root / path).resolve()
 
     # Block ../../ traversal — resolved path must stay inside MEDIA_ROOT
     if media_root not in full_path.parents:
         raise Http404
-
     if not full_path.is_file():
         raise Http404
-
-    user = request.user
-    if user.is_client_role:
-        # Clients may only download receipts attached to their own payments
-        allowed = False
-        if path.startswith('receipts/') and hasattr(user, 'client_profile'):
-            from apps.payments.models import Payment
-            allowed = Payment.objects.filter(
-                receipt=path, sale__client=user.client_profile
-            ).exists()
-        if not allowed:
-            raise Http404   # 404, not 403 — don't reveal that the file exists
 
     return FileResponse(open(full_path, 'rb'))
 

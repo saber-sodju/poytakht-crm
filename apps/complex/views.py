@@ -1,6 +1,8 @@
 from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.core.exceptions import ValidationError
 from django.db.models import Count, Q
 from django.http import JsonResponse
 
@@ -9,8 +11,11 @@ from .forms import (
     ComplexForm, BlockForm, FloorForm, ApartmentForm,
     BulkApartmentForm, ConstructionStageForm, PhotoReportForm,
 )
-from .services import bulk_generate_apartments
-from apps.accounts.decorators import staff_required
+from .services import (
+    bulk_generate_apartments,
+    delete_apartment, delete_floor, delete_block, delete_complex,
+)
+from apps.accounts.decorators import staff_required, director_or_admin_required
 
 
 @login_required
@@ -162,6 +167,85 @@ def bulk_generate(request, block_pk):
             messages.warning(request, 'Новых квартир не создано — все номера на этих этажах уже заняты.')
         return redirect('complex:block_detail', pk=block_pk)
     return render(request, 'complex/bulk_generate.html', {'form': form, 'block_obj': block})
+
+
+@login_required
+@director_or_admin_required
+def apartment_delete(request, pk):
+    apt = get_object_or_404(Apartment, pk=pk)
+    block_pk = apt.block.pk
+    if request.method == 'POST':
+        try:
+            delete_apartment(apt)
+        except ValidationError as exc:
+            messages.error(request, exc.message)
+            return redirect('complex:apartment_detail', pk=pk)
+        messages.success(request, f'Квартира {apt.number} удалена.')
+        return redirect('complex:block_detail', pk=block_pk)
+    return render(request, 'complex/confirm_delete.html', {
+        'title': f'Удалить квартиру {apt.number}?',
+        'warning': 'Это действие необратимо.',
+        'cancel_url': reverse('complex:apartment_detail', args=[pk]),
+    })
+
+
+@login_required
+@director_or_admin_required
+def floor_delete(request, pk):
+    floor = get_object_or_404(Floor, pk=pk)
+    block_pk = floor.block.pk
+    if request.method == 'POST':
+        try:
+            delete_floor(floor)
+        except ValidationError as exc:
+            messages.error(request, exc.message)
+            return redirect('complex:block_detail', pk=block_pk)
+        messages.success(request, f'Этаж {floor.number} удалён.')
+        return redirect('complex:block_detail', pk=block_pk)
+    return render(request, 'complex/confirm_delete.html', {
+        'title': f'Удалить этаж {floor.number}?',
+        'warning': f'Будут удалены все квартиры этого этажа ({floor.apartments.count()} шт.), если по ним нет истории продаж/броней. Действие необратимо.',
+        'cancel_url': reverse('complex:block_detail', args=[block_pk]),
+    })
+
+
+@login_required
+@director_or_admin_required
+def block_delete(request, pk):
+    block = get_object_or_404(Block, pk=pk)
+    complex_pk = block.complex.pk
+    if request.method == 'POST':
+        try:
+            delete_block(block)
+        except ValidationError as exc:
+            messages.error(request, exc.message)
+            return redirect('complex:block_detail', pk=pk)
+        messages.success(request, f'Блок «{block.name}» удалён.')
+        return redirect('complex:complex_detail', pk=complex_pk)
+    return render(request, 'complex/confirm_delete.html', {
+        'title': f'Удалить блок «{block.name}»?',
+        'warning': f'Будут удалены все этажи и квартиры этого блока ({block.total_apartments} квартир), если по ним нет истории продаж/броней. Действие необратимо.',
+        'cancel_url': reverse('complex:block_detail', args=[pk]),
+    })
+
+
+@login_required
+@director_or_admin_required
+def complex_delete(request, pk):
+    complex_obj = get_object_or_404(Complex, pk=pk)
+    if request.method == 'POST':
+        try:
+            delete_complex(complex_obj)
+        except ValidationError as exc:
+            messages.error(request, exc.message)
+            return redirect('complex:complex_detail', pk=pk)
+        messages.success(request, f'Комплекс «{complex_obj.name}» удалён.')
+        return redirect('complex:list')
+    return render(request, 'complex/confirm_delete.html', {
+        'title': f'Удалить комплекс «{complex_obj.name}»?',
+        'warning': f'Будут удалены все блоки, этажи и квартиры этого комплекса ({complex_obj.total_apartments} квартир), если по ним нет истории продаж/броней. Действие необратимо.',
+        'cancel_url': reverse('complex:complex_detail', args=[pk]),
+    })
 
 
 @login_required

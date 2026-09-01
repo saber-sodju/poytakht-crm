@@ -1,6 +1,6 @@
 import logging
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth import login, logout, authenticate
+from django.contrib.auth import login, logout, authenticate, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.cache import cache
@@ -8,7 +8,7 @@ from django.conf import settings
 from django.http import JsonResponse
 
 from .models import CustomUser, Notification
-from .forms import LoginForm, UserCreateForm, UserEditForm
+from .forms import LoginForm, UserCreateForm, UserEditForm, StyledPasswordChangeForm, StyledSetPasswordForm
 from .decorators import director_or_admin_required, staff_required
 from .permissions import can_manage_user
 
@@ -204,3 +204,40 @@ def mark_notifications_read(request):
 @login_required
 def profile_view(request):
     return render(request, 'accounts/profile.html', {'object': request.user})
+
+
+@login_required
+def password_change(request):
+    """Self-service password change for the logged-in user."""
+    form = StyledPasswordChangeForm(request.user, request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        user = form.save()
+        update_session_auth_hash(request, user)  # don't log the user out
+        messages.success(request, 'Пароль изменён.')
+        return redirect('accounts:profile')
+    return render(request, 'accounts/password_change.html', {'form': form})
+
+
+@login_required
+@director_or_admin_required
+def user_set_password(request, pk):
+    """Director/admin sets a new password for a user they're allowed to manage —
+    covers the "forgot password" case, since there's no self-service email reset."""
+    user = get_object_or_404(CustomUser, pk=pk)
+    if not can_manage_user(request.user, user):
+        messages.error(request, 'У вас нет доступа к этому пользователю.')
+        return redirect('accounts:users')
+    form = StyledSetPasswordForm(user, request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        from apps.audit.models import log_action, AuditLog
+        log_action(
+            user=request.user, action=AuditLog.ACTION_UPDATE,
+            model_name='CustomUser', object_id=user.pk,
+            object_repr=str(user),
+            description=f'Пароль сброшен администратором для: {user.username}',
+            request=request,
+        )
+        messages.success(request, f'Новый пароль для {user.username} установлен.')
+        return redirect('accounts:users')
+    return render(request, 'accounts/user_set_password.html', {'form': form, 'target_user': user})

@@ -28,6 +28,9 @@
       <span class="badge bg-success">{{ complex.free_apartments }} свободно</span>
       <span class="badge bg-danger">{{ complex.sold_apartments }} продано</span>
       <span class="badge bg-secondary">{{ complex.total_apartments }} всего</span>
+      {% if user.can_manage_complex %}
+      <a href="{% url 'complex:complex_delete' complex.pk %}" class="btn btn-sm btn-outline-danger" title="Удалить комплекс"><i class="bi bi-trash"></i></a>
+      {% endif %}
     </div>
   </div>
 

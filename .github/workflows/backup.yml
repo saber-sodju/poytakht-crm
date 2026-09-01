@@ -1,0 +1,30 @@
+name: DB Backup
+
+on:
+  schedule:
+    - cron: '0 2 * * *'   # каждый день в 02:00 UTC (≈ 07:00 Душанбе)
+  workflow_dispatch: {}    # плюс можно запустить вручную из вкладки Actions
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install postgresql-client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Dump database
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::Секрет DATABASE_URL не задан в настройках репозитория (Settings → Secrets and variables → Actions)."
+            exit 1
+          fi
+          pg_dump "$DATABASE_URL" --format=custom --file=backup_$(date +%Y%m%d_%H%M).dump
+
+      - name: Upload backup as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ github.run_id }}
+          path: backup_*.dump
+          retention-days: 30

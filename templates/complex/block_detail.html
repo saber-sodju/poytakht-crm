@@ -20,6 +20,7 @@
     <a href="{% url 'complex:floor_create' block_obj.pk %}" class="btn btn-outline-gold">+ Этаж</a>
     <a href="{% url 'complex:apartment_create' %}" class="btn btn-gold">+ Квартира</a>
     <a href="{% url 'complex:bulk_generate' block_obj.pk %}" class="btn btn-outline-gold">Массовое создание</a>
+    <a href="{% url 'complex:block_delete' block_obj.pk %}" class="btn btn-outline-danger">Удалить блок</a>
   </div>
   {% endif %}
 </div>
@@ -55,7 +56,12 @@
   <div class="apt-map" id="aptMap">
     {% for floor in floors %}
     <div class="apt-floor">
-      <div class="floor-label">Этаж {{ floor.number }}</div>
+      <div class="floor-label d-flex align-items-center gap-2">
+        <span>Этаж {{ floor.number }}</span>
+        {% if user.can_manage_complex %}
+        <a href="{% url 'complex:floor_delete' floor.pk %}" class="text-danger small" title="Удалить этаж"><i class="bi bi-trash"></i></a>
+        {% endif %}
+      </div>
       <div class="floor-apartments">
         {% for apt in floor.apartments.all %}
         <button class="apt-cell apt-{{ apt.status }}{% if apt.payment_badge %} apt-credit-flag{% endif %}"

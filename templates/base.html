@@ -181,6 +181,9 @@
   <button class="topbar-toggle" id="sidebarToggle" type="button">
     <i class="bi bi-list"></i>
   </button>
+  <button class="topbar-toggle" id="topbarBack" type="button" title="Назад" data-fallback="{% url 'dashboard:index' %}">
+    <i class="bi bi-arrow-left"></i>
+  </button>
 
   <div class="topbar-search d-none d-md-flex">
     <form action="{% url 'clients:list' %}" method="get" class="d-flex">

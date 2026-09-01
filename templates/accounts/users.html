@@ -28,8 +28,9 @@
             <span class="badge bg-danger">Отключён</span>
             {% endif %}
           </td>
-          <td class="d-flex gap-1">
+          <td class="d-flex gap-1 flex-wrap">
             <a href="{% url 'accounts:user_edit' u.pk %}" class="btn btn-sm btn-outline-gold">Редактировать</a>
+            <a href="{% url 'accounts:user_set_password' u.pk %}" class="btn btn-sm btn-outline-secondary">Пароль</a>
             {% if u.is_active %}
             <a href="{% url 'accounts:user_deactivate' u.pk %}" class="btn btn-sm btn-outline-danger">Деактивировать</a>
             {% else %}

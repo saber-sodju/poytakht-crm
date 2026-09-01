@@ -37,6 +37,21 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+  /* ── TOPBAR BACK BUTTON ──────────────────────────────── */
+  const backBtn = document.getElementById('topbarBack');
+  if (backBtn) {
+    backBtn.addEventListener('click', function () {
+      // Only go back if there's actual in-app history to return to —
+      // otherwise (e.g. opened via bookmark/new tab) fall back to the dashboard.
+      const cameFromSameSite = document.referrer && document.referrer.indexOf(window.location.origin) === 0;
+      if (window.history.length > 1 && cameFromSameSite) {
+        window.history.back();
+      } else {
+        window.location.href = backBtn.dataset.fallback || '/';
+      }
+    });
+  }
+
   /* ── AUTO-DISMISS ALERTS ─────────────────────────────── */
   document.querySelectorAll('.crm-alert').forEach(function (alert) {
     setTimeout(function () {

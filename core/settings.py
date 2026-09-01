@@ -52,6 +52,22 @@ if _railway_domain:
     if _railway_origin not in CSRF_TRUSTED_ORIGINS:
         CSRF_TRUSTED_ORIGINS.append(_railway_origin)
 
+# ── Error monitoring ──────────────────────────────────────────────────────────
+# Off by default — set SENTRY_DSN to turn it on (see README_PRODUCTION.md).
+# Without it, unhandled 500s are only visible in the Railway console logs.
+SENTRY_DSN = _env('SENTRY_DSN', '')
+if SENTRY_DSN:
+    import sentry_sdk
+    from sentry_sdk.integrations.django import DjangoIntegration
+
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[DjangoIntegration()],
+        traces_sample_rate=0.1,
+        send_default_pii=False,   # don't attach request user/cookies data to events
+        environment=_env('SENTRY_ENVIRONMENT', 'development' if DEBUG else 'production'),
+    )
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -63,6 +79,7 @@ INSTALLED_APPS = [
     'crispy_forms',
     'crispy_bootstrap5',
     'django_filters',
+    'storages',   # django-storages — only does anything when STORAGES['default'] points at it (see USE_S3_MEDIA below)
     'apps.accounts',
     'apps.complex',
     'apps.clients',
@@ -166,10 +183,40 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# ── File storage ──────────────────────────────────────────────────────────────
+# Django 5.x uses the STORAGES dict (the old STATICFILES_STORAGE/
+# DEFAULT_FILE_STORAGE settings were removed).
+STORAGES = {
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage',
+    },
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
+}
+
+# Media on S3-compatible storage (AWS S3, Cloudflare R2, Backblaze B2...) —
+# only turns on when AWS_STORAGE_BUCKET_NAME is set. Needed on Railway: its
+# filesystem is ephemeral, so local-disk media is wiped on every redeploy.
+# See README_PRODUCTION.md → "S3 media storage" for the env vars to set.
+AWS_STORAGE_BUCKET_NAME = _env('AWS_STORAGE_BUCKET_NAME', '')
+USE_S3_MEDIA = bool(AWS_STORAGE_BUCKET_NAME)
+
+if USE_S3_MEDIA:
+    AWS_ACCESS_KEY_ID = _env('AWS_ACCESS_KEY_ID')
+    AWS_SECRET_ACCESS_KEY = _env('AWS_SECRET_ACCESS_KEY')
+    # Leave AWS_S3_ENDPOINT_URL unset for real AWS S3. Set it for
+    # S3-compatible providers, e.g. Cloudflare R2 or Backblaze B2.
+    AWS_S3_ENDPOINT_URL = _env('AWS_S3_ENDPOINT_URL', '') or None
+    AWS_S3_REGION_NAME = _env('AWS_S3_REGION_NAME', 'auto')
+    AWS_DEFAULT_ACL = None            # bucket stays private
+    AWS_QUERYSTRING_AUTH = True       # uploaded objects need a signed URL to be read
+    AWS_S3_FILE_OVERWRITE = False
+    STORAGES['default'] = {'BACKEND': 'storages.backends.s3.S3Storage'}
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'accounts.CustomUser'

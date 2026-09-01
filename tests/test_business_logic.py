@@ -14,7 +14,10 @@ from apps.clients.models import Client
 from apps.complex.models import Complex, Block, Floor, Apartment
 from apps.sales.models import Sale, Booking
 from apps.sales.services import create_sale, create_booking, cancel_booking, cancel_sale
-from apps.complex.services import bulk_generate_apartments
+from apps.complex.services import (
+    bulk_generate_apartments,
+    delete_apartment, delete_floor, delete_block, delete_complex,
+)
 from apps.payments.models import Payment
 
 User = get_user_model()
@@ -194,6 +197,81 @@ class BulkGenerateApartmentsTests(TestCase):
         numbers = list(Apartment.objects.filter(floor__block=block).values_list('number', flat=True))
         self.assertEqual(len(numbers), len(set(numbers)))  # no duplicates
         self.assertEqual(len(second), 2)  # continues past the already-used numbers
+
+
+class DeleteGuardTests(TestCase):
+    """Deleting apartments/floors/blocks/complexes must never silently
+    destroy sale/payment history."""
+
+    def test_deletes_clean_apartment(self):
+        director, apt, client = _base_data()
+        delete_apartment(apt)
+        self.assertFalse(Apartment.objects.filter(pk=apt.pk).exists())
+
+    def test_blocks_apartment_with_sale(self):
+        director, apt, client = _base_data()
+        create_sale(
+            user=director, apartment_id=apt.pk, client=client,
+            total_price=Decimal('100000'), payment_type='full',
+        )
+        with self.assertRaises(ValidationError):
+            delete_apartment(apt)
+        self.assertTrue(Apartment.objects.filter(pk=apt.pk).exists())
+
+    def test_blocks_apartment_with_cancelled_sale(self):
+        # Even a cancelled sale is kept for the record — must still block deletion.
+        director, apt, client = _base_data()
+        sale = create_sale(
+            user=director, apartment_id=apt.pk, client=client,
+            total_price=Decimal('100000'), payment_type='full',
+        )
+        cancel_sale(user=director, sale=sale, reason='x')
+        with self.assertRaises(ValidationError):
+            delete_apartment(apt)
+
+    def test_blocks_apartment_with_booking(self):
+        director, apt, client = _base_data()
+        create_booking(
+            user=director, apartment_id=apt.pk, client=client,
+            start_date=timezone.now().date(),
+            end_date=timezone.now().date() + timedelta(days=7),
+        )
+        with self.assertRaises(ValidationError):
+            delete_apartment(apt)
+
+    def test_deletes_clean_floor_cascades_apartments(self):
+        director, apt, client = _base_data()
+        floor = apt.floor
+        delete_floor(floor)
+        self.assertFalse(Floor.objects.filter(pk=floor.pk).exists())
+        self.assertFalse(Apartment.objects.filter(pk=apt.pk).exists())
+
+    def test_blocks_floor_with_sold_apartment(self):
+        director, apt, client = _base_data()
+        create_sale(
+            user=director, apartment_id=apt.pk, client=client,
+            total_price=Decimal('100000'), payment_type='full',
+        )
+        with self.assertRaises(ValidationError):
+            delete_floor(apt.floor)
+
+    def test_blocks_block_and_complex_with_sold_apartment(self):
+        director, apt, client = _base_data()
+        create_sale(
+            user=director, apartment_id=apt.pk, client=client,
+            total_price=Decimal('100000'), payment_type='full',
+        )
+        with self.assertRaises(ValidationError):
+            delete_block(apt.block)
+        with self.assertRaises(ValidationError):
+            delete_complex(apt.block.complex)
+
+    def test_deletes_clean_complex_cascades_everything(self):
+        director, apt, client = _base_data()
+        cplx = apt.block.complex
+        delete_complex(cplx)
+        self.assertFalse(Complex.objects.filter(pk=cplx.pk).exists())
+        self.assertFalse(Apartment.objects.filter(pk=apt.pk).exists())
 
 
 class IncomeAccountingTests(TestCase):
