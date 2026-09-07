@@ -9,7 +9,7 @@ from django.http import JsonResponse
 from .models import Complex, Block, Floor, Apartment, ConstructionStage, PhotoReport
 from .forms import (
     ComplexForm, BlockForm, FloorForm, ApartmentForm,
-    BulkApartmentForm, ConstructionStageForm, PhotoReportForm,
+    ConstructionStageForm, PhotoReportForm,
 )
 from .services import (
     bulk_generate_apartments,
@@ -50,8 +50,24 @@ def block_create(request):
     form = BlockForm(request.POST or None)
     if request.method == 'POST' and form.is_valid():
         block = form.save()
-        messages.success(request, f'Блок «{block.name}» создан.')
-        return redirect('complex:complex_detail', pk=block.complex_id)
+        cd = form.cleaned_data
+        if cd.get('floors_count'):
+            created = bulk_generate_apartments(
+                block=block,
+                floor_from=1, floor_to=cd['floors_count'],
+                apartments_per_floor=cd['apartments_per_floor'],
+                apartment_type=cd['apartment_type'],
+                area=cd['area'],
+                price_per_sqm=cd['price_per_sqm'],
+            )
+            messages.success(
+                request,
+                f'Блок «{block.name}» создан, квартир сгенерировано: {len(created)}. '
+                f'Отдельные квартиры/этажи можно поправить на странице блока.',
+            )
+        else:
+            messages.success(request, f'Блок «{block.name}» создан.')
+        return redirect('complex:block_detail', pk=block.pk)
     return render(request, 'complex/form.html', {'form': form, 'title': 'Новый блок'})
 
 
@@ -143,30 +159,6 @@ def apartment_api(request, pk):
         'payment_badge': apt.payment_badge,
     }
     return JsonResponse(data)
-
-
-@login_required
-@staff_required
-def bulk_generate(request, block_pk):
-    block = get_object_or_404(Block, pk=block_pk)
-    form = BulkApartmentForm(request.POST or None)
-    if request.method == 'POST' and form.is_valid():
-        cd = form.cleaned_data
-        created = bulk_generate_apartments(
-            block=block,
-            floor_from=cd['floor_from'],
-            floor_to=cd['floor_to'],
-            apartments_per_floor=cd['apartments_per_floor'],
-            apartment_type=cd['apartment_type'],
-            area=cd['area'],
-            price_per_sqm=cd['price_per_sqm'],
-        )
-        if created:
-            messages.success(request, f'Создано квартир: {len(created)}.')
-        else:
-            messages.warning(request, 'Новых квартир не создано — все номера на этих этажах уже заняты.')
-        return redirect('complex:block_detail', pk=block_pk)
-    return render(request, 'complex/bulk_generate.html', {'form': form, 'block_obj': block})
 
 
 @login_required

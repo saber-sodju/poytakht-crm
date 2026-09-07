@@ -12,7 +12,6 @@ urlpatterns = [
     path('blocks/<int:pk>/', views.block_detail, name='block_detail'),
     path('blocks/<int:pk>/delete/', views.block_delete, name='block_delete'),
     path('blocks/<int:block_pk>/floors/add/', views.floor_create, name='floor_create'),
-    path('blocks/<int:block_pk>/bulk-generate/', views.bulk_generate, name='bulk_generate'),
     path('blocks/<int:block_pk>/stages/update/', views.stage_update, name='stage_update'),
     path('blocks/<int:block_pk>/photos/add/', views.photo_add, name='photo_add'),
     path('floors/<int:pk>/delete/', views.floor_delete, name='floor_delete'),
