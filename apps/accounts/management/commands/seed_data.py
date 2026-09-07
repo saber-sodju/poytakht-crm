@@ -1,6 +1,9 @@
 """
-Management command: python manage.py seed_data
-Creates demo data for all roles and modules.
+Management command: python manage.py seed_data [--reset]
+
+Creates demo data for all roles and modules. Idempotent by default (skips
+anything that already exists) — pass --reset to wipe ALL existing data
+first (including every user account) and rebuild from scratch.
 """
 from django.core.management.base import BaseCommand
 from django.utils import timezone
@@ -12,46 +15,109 @@ import random
 class Command(BaseCommand):
     help = 'Seed demo data for CRM'
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--reset', action='store_true',
+            help='Delete ALL existing data first (users, sales, apartments, everything), then reseed.',
+        )
+        parser.add_argument(
+            '--users-only', action='store_true',
+            help='Only create the 3 staff accounts — skip all demo complex/clients/sales/expenses/workers/materials data.',
+        )
+
     def handle(self, *args, **kwargs):
+        if kwargs.get('reset'):
+            self._wipe_all()
+
         self.stdout.write('Creating seed data...')
 
         self._create_users()
-        self._create_complex()
-        self._create_clients()
-        self._create_leads()
-        self._create_sales()
-        self._create_expenses()
-        self._create_workers()
-        self._create_materials()
 
-        self.stdout.write(self.style.SUCCESS('[OK] Testovye dannye sozdany!'))
+        if not kwargs.get('users_only'):
+            self._create_complex()
+            self._create_clients()
+            self._create_leads()
+            self._create_sales()
+            self._create_expenses()
+            self._create_workers()
+            self._create_materials()
+
+        self.stdout.write(self.style.SUCCESS('[OK] Dannye sozdany!'))
         self.stdout.write('')
         self.stdout.write('Loginy dlya vkhoda:')
-        self.stdout.write('  director     / demo123456  - Direktor')
-        self.stdout.write('  admin_crm    / demo123456  - Administrator')
-        self.stdout.write('  manager1     / demo123456  - Menedzher')
-        self.stdout.write('  accountant1  / demo123456  - Bukhgalter')
+        self.stdout.write('  umed     / 7777  - Direktor (Umed)')
+        self.stdout.write('  firuz    / 8888  - Administrator (Firuz)')
+        self.stdout.write('  manager  / 6666  - Menedzher')
+
+    # ── Wipe ──────────────────────────────────────────────────────────────────
+
+    def _wipe_all(self):
+        from apps.audit.models import AuditLog
+        from apps.payments.models import Payment, PaymentSchedule
+        from apps.sales.models import Sale, Booking
+        from apps.clients.models import Client, Lead
+        from apps.complex.models import Complex, Block, Floor, Apartment, ConstructionStage, PhotoReport
+        from apps.expenses.models import Expense
+        from apps.workers.models import Worker, Team, Position, Attendance, SalaryPayment
+        from apps.materials.models import Material, Supplier, MaterialMovement
+        from apps.accounts.models import CustomUser, Notification
+
+        AuditLog.objects.all().delete()
+        Payment.objects.all().delete()
+        PaymentSchedule.objects.all().delete()
+        Sale.objects.all().delete()
+        Booking.objects.all().delete()
+        Lead.objects.all().delete()
+        Client.objects.all().delete()
+        PhotoReport.objects.all().delete()
+        ConstructionStage.objects.all().delete()
+        Apartment.objects.all().delete()
+        Floor.objects.all().delete()
+        Block.objects.all().delete()
+        Complex.objects.all().delete()
+        Expense.objects.all().delete()
+        SalaryPayment.objects.all().delete()
+        Attendance.objects.all().delete()
+        Worker.objects.all().delete()
+        Team.objects.all().delete()
+        Position.objects.all().delete()
+        MaterialMovement.objects.all().delete()
+        Material.objects.all().delete()
+        Supplier.objects.all().delete()
+        Notification.objects.all().delete()
+        CustomUser.objects.all().delete()
+        self.stdout.write(self.style.WARNING('  Wiped ALL existing data.'))
+
+    # ── Users ─────────────────────────────────────────────────────────────────
 
     def _create_users(self):
         from apps.accounts.models import CustomUser
+        # NOTE: these passwords (7777/8888/6666) deliberately violate the
+        # project's own AUTH_PASSWORD_VALIDATORS (min length 8, not fully
+        # numeric) — set explicitly per the client's request. create_user()
+        # only hashes the password, it doesn't run the validators (those are
+        # only invoked by form clean()), so this works, but it's a real
+        # brute-force risk: a 4-digit PIN is 10,000 combinations, well within
+        # the 5-attempts/15-min lockout being annoying rather than protective
+        # if someone specifically targets these accounts.
         users_data = [
-            {'username': 'director', 'first_name': 'Фируз', 'last_name': 'Рахимов', 'role': 'director', 'phone': '+992900000001'},
-            {'username': 'admin_crm', 'first_name': 'Шамс', 'last_name': 'Назаров', 'role': 'admin', 'phone': '+992900000002'},
-            {'username': 'manager1', 'first_name': 'Нилуфар', 'last_name': 'Алиева', 'role': 'manager', 'phone': '+992900000003'},
-            {'username': 'accountant1', 'first_name': 'Зафар', 'last_name': 'Холов', 'role': 'accountant', 'phone': '+992900000004'},
+            {'username': 'umed', 'first_name': 'Умед', 'role': 'director', 'password': '7777', 'phone': '+992900000001'},
+            {'username': 'firuz', 'first_name': 'Фируз', 'role': 'admin', 'password': '8888', 'phone': '+992900000002'},
+            {'username': 'manager', 'first_name': 'Менеджер', 'role': 'manager', 'password': '6666', 'phone': '+992900000003'},
         ]
         for data in users_data:
             if not CustomUser.objects.filter(username=data['username']).exists():
                 user = CustomUser.objects.create_user(
                     username=data['username'],
-                    password='demo123456',
+                    password=data['password'],
                     first_name=data['first_name'],
-                    last_name=data['last_name'],
                     role=data['role'],
                     phone=data['phone'],
-                    email=f"{data['username']}@poytakht.tj",
+                    email=f"{data['username']}@poytakhtinshoot.com",
                 )
-                self.stdout.write(f'  User created: {user.username}')
+                self.stdout.write(f'  User created: {user.username} ({data["role"]})')
+
+    # ── Complex / Blocks / Floors / Apartments ──────────────────────────────────
 
     def _create_complex(self):
         from apps.complex.models import Complex, Block, Floor, Apartment, ConstructionStage
@@ -73,7 +139,9 @@ class Command(BaseCommand):
         ]
 
         apt_types = ['1', '2', '3', '2', '1', '3', '2']
-        statuses = ['free'] * 6 + ['booked'] + ['sold'] * 4
+        # ~40% sold, ~10% booked, ~50% free — a complex mid-way through sales,
+        # not a ghost building and not sold out either.
+        statuses = ['sold'] * 4 + ['booked'] + ['free'] * 5
 
         for bdata in blocks_data:
             block = Block.objects.create(
@@ -81,7 +149,6 @@ class Command(BaseCommand):
                 name=bdata['name'],
                 budget_planned=bdata['budget'],
             )
-            # Create stages
             for stage_key, _ in ConstructionStage.STAGE_CHOICES:
                 ConstructionStage.objects.create(
                     block=block, stage=stage_key,
@@ -112,7 +179,38 @@ class Command(BaseCommand):
                     )
                     apt_number += 1
 
-        self.stdout.write(f'  Complex created: {cx.name}')
+        self.stdout.write(f'  Complex created: {cx.name} ({Apartment.objects.count()} apartments)')
+
+    # ── Clients ───────────────────────────────────────────────────────────────
+
+    FIRST_NAMES_M = ['Бахром', 'Темур', 'Санжар', 'Шухрат', 'Рустам', 'Фаридун', 'Комил',
+                      'Далер', 'Джамшед', 'Хасан', 'Азиз', 'Нурулло', 'Умарали', 'Сухроб',
+                      'Парвиз', 'Искандар', 'Толиб', 'Фирдавс', 'Бехруз', 'Манучехр']
+    FIRST_NAMES_F = ['Мадина', 'Зарина', 'Лола', 'Дилноза', 'Гулнора', 'Саноат', 'Мунира',
+                      'Нигина', 'Фарзона', 'Шахноза', 'Наргис', 'Замира', 'Малика', 'Севара']
+    LAST_STEMS = ['Акрамов', 'Холматов', 'Назаров', 'Рашидов', 'Юсупов', 'Мирзоев', 'Каримов',
+                  'Тошматов', 'Исмоилов', 'Баротов', 'Алиев', 'Хасанов', 'Тоиров', 'Раджабов',
+                  'Собиров', 'Файзуллоев', 'Гуломов', 'Шарипов', 'Одинаев', 'Пулатов']
+    PATRONYMIC_M = ['Саидович', 'Рустамович', 'Алишерович', 'Хасанович', 'Бекович', 'Умарович',
+                    'Шамсович', 'Бахтиёрович', 'Джураевич', 'Комилович']
+    PATRONYMIC_F = ['Саидовна', 'Рустамовна', 'Фаридовна', 'Бахтиёровна', 'Улмасовна', 'Хасановна']
+
+    def _generate_client_names(self, n):
+        random.seed(42)  # reproducible across runs
+        names = []
+        used = set()
+        while len(names) < n:
+            is_male = random.random() < 0.6
+            first = random.choice(self.FIRST_NAMES_M if is_male else self.FIRST_NAMES_F)
+            stem = random.choice(self.LAST_STEMS)
+            last = stem if is_male else stem[:-2] + 'а'  # crude masc->fem surname ending
+            patronymic = random.choice(self.PATRONYMIC_M if is_male else self.PATRONYMIC_F)
+            full = f'{last} {first} {patronymic}'
+            if full in used:
+                continue
+            used.add(full)
+            names.append(full)
+        return names
 
     def _create_clients(self):
         from apps.clients.models import Client
@@ -122,25 +220,21 @@ class Command(BaseCommand):
             return
 
         manager = CustomUser.objects.filter(role='manager').first()
-        clients_data = [
-            ('Акрамов Бахром Саидович', '+992901234567', 'АА', '1234567'),
-            ('Холматова Мадина Рустамовна', '+992902345678', 'АБ', '2345678'),
-            ('Назаров Темур Алишерович', '+992903456789', 'АВ', '3456789'),
-            ('Рашидова Зарина Фаридовна', '+992904567890', 'АГ', '4567890'),
-            ('Юсупов Санжар Хасанович', '+992905678901', 'АД', '5678901'),
-            ('Мирзоева Лола Бахтиёровна', '+992906789012', 'АЕ', '6789012'),
-            ('Каримов Шухрат Бекович', '+992907890123', 'АЖ', '7890123'),
-            ('Тошматова Дилноза Улмасовна', '+992908901234', 'АЗ', '8901234'),
-        ]
+        names = self._generate_client_names(45)
+        series_pool = ['АА', 'АБ', 'АВ', 'АГ', 'АД', 'АЕ', 'АЖ', 'АЗ', 'АИ', 'АК']
         clients = []
-        for full_name, phone, pser, pnum in clients_data:
+        for i, full_name in enumerate(names):
             c = Client.objects.create(
-                full_name=full_name, phone=phone,
-                passport_series=pser, passport_number=pnum,
+                full_name=full_name,
+                phone=f'+9929{i:07d}',
+                passport_series=series_pool[i % len(series_pool)],
+                passport_number=f'{1000000 + i * 137}',
                 added_by=manager,
             )
             clients.append(c)
         self.stdout.write(f'  Created {len(clients)} clients')
+
+    # ── Leads ─────────────────────────────────────────────────────────────────
 
     def _create_leads(self):
         from apps.clients.models import Lead
@@ -157,6 +251,9 @@ class Command(BaseCommand):
             ('Алиев Нурулло', '+992910333333', 'callback', '1-комнатная', 40000, 'office'),
             ('Хасанов Азиз', '+992910444444', 'negotiation', '2-комнатная', 65000, 'referral'),
             ('Тоирова Мунира', '+992910555555', 'refused', '3-комнатная', 90000, 'advertising'),
+            ('Раджабов Фаридун', '+992910666666', 'new', '2-комнатная', 62000, 'instagram'),
+            ('Собирова Нигина', '+992910777777', 'negotiation', '1-комнатная', 42000, 'referral'),
+            ('Пулатов Джамшед', '+992910888888', 'callback', '3-комнатная', 88000, 'call'),
         ]
         for name, phone, status, interest, budget, source in leads_data:
             Lead.objects.create(
@@ -165,7 +262,9 @@ class Command(BaseCommand):
                 assigned_to=manager,
                 next_contact_date=today + timedelta(days=random.randint(1, 7)) if status in ['callback', 'negotiation'] else None,
             )
-        self.stdout.write('  Created 5 leads')
+        self.stdout.write(f'  Created {len(leads_data)} leads')
+
+    # ── Sales / Payments (the detailed "who owes what" part) ────────────────────
 
     def _create_sales(self):
         from apps.complex.models import Apartment
@@ -178,68 +277,96 @@ class Command(BaseCommand):
             return
 
         manager = CustomUser.objects.filter(role='manager').first()
-        accountant = CustomUser.objects.filter(role='accountant').first()
+        # No accountant role in this dataset — fall back to admin for "who recorded the payment".
+        money_user = CustomUser.objects.filter(role='accountant').first() \
+            or CustomUser.objects.filter(role='admin').first() or manager
         clients = list(Client.objects.all())
         today = date.today()
+        client_i = 0
 
-        sold_apts = list(Apartment.objects.filter(status='sold')[:4])
-        booked_apts = list(Apartment.objects.filter(status='booked')[:1])
+        def next_client():
+            nonlocal client_i
+            c = clients[client_i % len(clients)]
+            client_i += 1
+            return c
 
-        # Bookings
-        for i, apt in enumerate(booked_apts):
-            if i < len(clients):
-                Booking.objects.create(
-                    apartment=apt, client=clients[i],
-                    end_date=today + timedelta(days=7),
-                    deposit=Decimal('1000'),
-                    created_by=manager,
-                )
+        # Bookings — a few 'booked' apartments get an active reservation with a deposit.
+        booked_apts = list(Apartment.objects.filter(status='booked'))
+        for apt in booked_apts:
+            Booking.objects.create(
+                apartment=apt, client=next_client(),
+                end_date=today + timedelta(days=random.randint(3, 14)),
+                deposit=(apt.total_price * Decimal('0.05')).quantize(Decimal('1')),
+                created_by=manager,
+            )
 
-        # Sales
-        payment_types = ['installment', 'full', 'installment', 'mortgage']
+        # Sales — EVERY 'sold' apartment gets a real Sale record with a realistic
+        # payment history, not just the first few. Payment type + how far along
+        # the installment/mortgage plan is are both randomized so debt figures
+        # vary realistically across the portfolio.
+        sold_apts = list(Apartment.objects.filter(status='sold'))
+        payment_types = ['full', 'installment', 'installment', 'mortgage']
+        random.seed(7)
+
         for i, apt in enumerate(sold_apts):
-            client = clients[i + 1] if i + 1 < len(clients) else clients[0]
+            client = next_client()
             ptype = payment_types[i % len(payment_types)]
+            months_ago = random.randint(1, 20)
+            sale_date = today - timedelta(days=months_ago * 30 + random.randint(0, 25))
+
             sale = Sale.objects.create(
                 apartment=apt, client=client,
                 total_price=apt.total_price,
                 payment_type=ptype,
-                contract_number=f'ДКП-2024-{1000 + i}',
-                contract_date=today - timedelta(days=random.randint(30, 180)),
-                sale_date=today - timedelta(days=random.randint(30, 180)),
+                contract_number=f'ДКП-2025-{1000 + i}',
+                contract_date=sale_date,
+                sale_date=sale_date,
                 created_by=manager,
             )
 
-            # Add payments
             if ptype == 'full':
                 Payment.objects.create(
                     sale=sale, amount=apt.total_price,
-                    payment_date=sale.sale_date, added_by=accountant,
+                    payment_date=sale_date, added_by=money_user,
+                    note='Оплата полной суммы при оформлении',
                 )
-            elif ptype == 'installment':
-                # First payment 30%, rest as schedule
-                first_pay = apt.total_price * Decimal('0.3')
+            else:
+                # installment or mortgage: an upfront deposit, then a monthly
+                # schedule over 12 (installment) or 24 (mortgage) months.
+                deposit_pct = Decimal('0.30') if ptype == 'installment' else Decimal('0.20')
+                plan_months = 12 if ptype == 'installment' else 24
+                deposit = (apt.total_price * deposit_pct).quantize(Decimal('0.01'))
+
                 Payment.objects.create(
-                    sale=sale, amount=first_pay,
-                    payment_date=sale.sale_date, added_by=accountant,
+                    sale=sale, amount=deposit,
+                    payment_date=sale_date, added_by=money_user,
+                    note='Первоначальный взнос',
                 )
-                months = 12
-                monthly = (apt.total_price - first_pay) / months
-                for m in range(1, months + 1):
-                    due = today + timedelta(days=m * 30)
-                    PaymentSchedule.objects.create(
-                        sale=sale, due_date=due, amount=monthly.quantize(Decimal('0.01')),
+
+                monthly = ((apt.total_price - deposit) / plan_months).quantize(Decimal('0.01'))
+                # how many of the plan's monthly payments are already due by now
+                months_elapsed = min(plan_months, months_ago)
+                for m in range(1, plan_months + 1):
+                    due = sale_date + timedelta(days=m * 30)
+                    schedule = PaymentSchedule.objects.create(
+                        sale=sale, due_date=due, amount=monthly,
                     )
-            elif ptype == 'mortgage':
-                first_pay = apt.total_price * Decimal('0.2')
-                Payment.objects.create(
-                    sale=sale, amount=first_pay,
-                    payment_date=sale.sale_date, added_by=accountant,
-                )
+                    if m <= months_elapsed:
+                        # ~85% of due installments were actually paid on time —
+                        # the rest are left unpaid/overdue, on purpose, so the
+                        # CRM's overdue-debt tracking has something real to show.
+                        if random.random() < 0.85:
+                            Payment.objects.create(
+                                sale=sale, schedule=schedule, amount=monthly,
+                                payment_date=due, added_by=money_user,
+                                note=f'Плановый платёж {m}/{plan_months}',
+                            )
 
             sale.update_paid_amount()
 
-        self.stdout.write(f'  Created {len(sold_apts)} sales')
+        self.stdout.write(f'  Created {len(sold_apts)} sales (with realistic payment history) and {len(booked_apts)} bookings')
+
+    # ── Expenses ──────────────────────────────────────────────────────────────
 
     def _create_expenses(self):
         from apps.expenses.models import Expense
@@ -249,14 +376,15 @@ class Command(BaseCommand):
         if Expense.objects.exists():
             return
 
-        accountant = CustomUser.objects.filter(role='accountant').first()
+        money_user = CustomUser.objects.filter(role='accountant').first() \
+            or CustomUser.objects.filter(role='admin').first()
         blocks = list(Block.objects.all())
         cx = Complex.objects.first()
         today = date.today()
 
         expenses_data = [
             ('materials', 45000, 'Кирпич и цемент для кладки'),
-            ('salary', 28000, 'Зарплата рабочих за ноябрь'),
+            ('salary', 28000, 'Зарплата рабочих за месяц'),
             ('equipment', 12000, 'Аренда крана'),
             ('transport', 3500, 'Доставка материалов'),
             ('documents', 800, 'Проектная документация'),
@@ -271,12 +399,14 @@ class Command(BaseCommand):
                 complex=cx, block=block,
                 category=cat, amount=amount,
                 date=today - timedelta(days=random.randint(1, 60)),
-                description=desc, added_by=accountant,
+                description=desc, added_by=money_user,
             )
         self.stdout.write('  Created 8 expenses')
 
+    # ── Workers ───────────────────────────────────────────────────────────────
+
     def _create_workers(self):
-        from apps.workers.models import Position, Team, Worker, Attendance, SalaryPayment
+        from apps.workers.models import Position, Team, Worker, Attendance
         from apps.complex.models import Complex
         from apps.accounts.models import CustomUser
 
@@ -287,12 +417,10 @@ class Command(BaseCommand):
         admin = CustomUser.objects.filter(role='admin').first() or CustomUser.objects.first()
         today = date.today()
 
-        # Positions
         positions_data = ['Прораб', 'Каменщик', 'Бетонщик', 'Сварщик',
                           'Электрик', 'Плиточник', 'Разнорабочий']
         positions = {p: Position.objects.get_or_create(name=p)[0] for p in positions_data}
 
-        # Teams
         team_a = Team.objects.create(name='Бригада А', complex=cx)
         team_b = Team.objects.create(name='Бригада Б', complex=cx)
 
@@ -318,7 +446,6 @@ class Command(BaseCommand):
             )
             workers.append(w)
 
-        # Attendance for last 7 days
         statuses = ['present', 'present', 'present', 'present', 'half', 'absent', 'present']
         for w in workers:
             for i, days_back in enumerate(range(6, -1, -1)):
@@ -330,6 +457,8 @@ class Command(BaseCommand):
                 )
 
         self.stdout.write(f'  Created {len(workers)} workers with attendance')
+
+    # ── Materials ─────────────────────────────────────────────────────────────
 
     def _create_materials(self):
         from apps.materials.models import Supplier, Material, MaterialMovement
@@ -343,7 +472,6 @@ class Command(BaseCommand):
         block = Block.objects.first()
         today = date.today()
 
-        # Suppliers
         sup1 = Supplier.objects.create(
             name='ТаджикСтройМат', phone='+992372001111',
             contact_person='Назаров Комил', address='г. Душанбе, ул. Ленина 10'
@@ -370,7 +498,6 @@ class Command(BaseCommand):
                 min_quantity=Decimal(str(min_qty)),
                 price_per_unit=Decimal(str(price)),
             )
-            # Add incoming movement
             mv = MaterialMovement(
                 material=m, direction='in',
                 quantity=Decimal(str(qty)),
@@ -381,7 +508,6 @@ class Command(BaseCommand):
             )
             mv.save()
 
-        # Some outgoing movements
         cement = Material.objects.filter(name='Цемент М400').first()
         if cement:
             mv = MaterialMovement(
