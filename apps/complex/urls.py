@@ -14,6 +14,7 @@ urlpatterns = [
     path('blocks/<int:block_pk>/floors/add/', views.floor_create, name='floor_create'),
     path('blocks/<int:block_pk>/stages/update/', views.stage_update, name='stage_update'),
     path('blocks/<int:block_pk>/photos/add/', views.photo_add, name='photo_add'),
+    path('floors/<int:pk>/copy/', views.floor_copy_layout, name='floor_copy_layout'),
     path('floors/<int:pk>/delete/', views.floor_delete, name='floor_delete'),
     path('apartments/create/', views.apartment_create, name='apartment_create'),
     path('apartments/create/floor/<int:floor_pk>/', views.apartment_create, name='apartment_create_floor'),

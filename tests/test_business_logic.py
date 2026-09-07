@@ -15,7 +15,7 @@ from apps.complex.models import Complex, Block, Floor, Apartment
 from apps.sales.models import Sale, Booking
 from apps.sales.services import create_sale, create_booking, cancel_booking, cancel_sale
 from apps.complex.services import (
-    bulk_generate_apartments,
+    create_floors, copy_floor_layout,
     delete_apartment, delete_floor, delete_block, delete_complex,
 )
 from apps.payments.models import Payment
@@ -163,40 +163,104 @@ class SaleServiceTests(TestCase):
         self.assertEqual(client.total_debt, Decimal('50000'))
 
 
-class BulkGenerateApartmentsTests(TestCase):
+class FloorLayoutTests(TestCase):
+    """Floors are created empty, then one hand-built floor's apartment mix is
+    copied up the block — a real floor is a mix of flat types, never N
+    identical ones."""
 
     def _block(self):
         cplx = Complex.objects.create(name='Test', address='Addr')
         return Block.objects.create(complex=cplx, name='A')
 
-    def test_creates_floors_and_apartments(self):
-        block = self._block()
-        created = bulk_generate_apartments(
-            block=block, floor_from=1, floor_to=2, apartments_per_floor=3,
-            apartment_type='2', area=Decimal('50'), price_per_sqm=Decimal('1000'),
-        )
-        self.assertEqual(len(created), 6)
-        self.assertEqual(Floor.objects.filter(block=block).count(), 2)
-        self.assertEqual(Apartment.objects.filter(floor__block=block).count(), 6)
-        apt = Apartment.objects.filter(floor__block=block).first()
-        self.assertEqual(apt.total_price, Decimal('50000'))
-        self.assertEqual(apt.status, Apartment.STATUS_FREE)
+    def _mixed_floor(self, block, number=1):
+        """A realistic floor: two 1-room, one 2-room, one 3-room."""
+        floor = Floor.objects.create(block=block, number=number)
+        spec = [('1', '45'), ('1', '45'), ('2', '68'), ('3', '92')]
+        for i, (apt_type, area) in enumerate(spec, start=1):
+            Apartment.objects.create(
+                floor=floor, number=f'{number}{i:02d}',
+                apartment_type=apt_type, area=Decimal(area),
+                price_per_sqm=Decimal('1000'),
+                total_price=Decimal(area) * Decimal('1000'),
+            )
+        return floor
 
-    def test_rerun_skips_existing_numbers_no_duplicates(self):
+    def test_create_floors_makes_empty_floors(self):
         block = self._block()
-        bulk_generate_apartments(
-            block=block, floor_from=1, floor_to=1, apartments_per_floor=2,
-            apartment_type='1', area=Decimal('40'), price_per_sqm=Decimal('1000'),
+        created = create_floors(block=block, count=12)
+        self.assertEqual(len(created), 12)
+        self.assertEqual(Floor.objects.filter(block=block).count(), 12)
+        self.assertEqual(Apartment.objects.filter(floor__block=block).count(), 0)
+
+    def test_create_floors_is_idempotent(self):
+        block = self._block()
+        create_floors(block=block, count=5)
+        again = create_floors(block=block, count=5)
+        self.assertEqual(again, [])
+        self.assertEqual(Floor.objects.filter(block=block).count(), 5)
+
+    def test_copy_preserves_the_mix_of_types_and_areas(self):
+        block = self._block()
+        source = self._mixed_floor(block, 1)
+        created = copy_floor_layout(source_floor=source, target_numbers=range(2, 13))
+
+        self.assertEqual(len(created), 44)  # 4 apartments x 11 floors
+        for floor_number in range(2, 13):
+            apts = Apartment.objects.filter(floor__block=block, floor__number=floor_number)
+            self.assertEqual(
+                sorted(apts.values_list('apartment_type', flat=True)),
+                ['1', '1', '2', '3'],
+            )
+            self.assertEqual(
+                sorted(a.area for a in apts),
+                [Decimal('45'), Decimal('45'), Decimal('68'), Decimal('92')],
+            )
+
+    def test_copy_numbers_by_floor_and_position(self):
+        block = self._block()
+        source = self._mixed_floor(block, 1)
+        copy_floor_layout(source_floor=source, target_numbers=[5])
+        numbers = sorted(
+            Apartment.objects.filter(floor__block=block, floor__number=5)
+            .values_list('number', flat=True)
         )
-        # Manually free up capacity by generating again on the same range —
-        # existing numbers must not be duplicated.
-        second = bulk_generate_apartments(
-            block=block, floor_from=1, floor_to=1, apartments_per_floor=2,
-            apartment_type='1', area=Decimal('40'), price_per_sqm=Decimal('1000'),
+        self.assertEqual(numbers, ['501', '502', '503', '504'])
+
+    def test_copy_applies_price_step_per_floor(self):
+        block = self._block()
+        source = self._mixed_floor(block, 1)
+        copy_floor_layout(
+            source_floor=source, target_numbers=[3],
+            price_step_per_floor=Decimal('20'),
         )
-        numbers = list(Apartment.objects.filter(floor__block=block).values_list('number', flat=True))
-        self.assertEqual(len(numbers), len(set(numbers)))  # no duplicates
-        self.assertEqual(len(second), 2)  # continues past the already-used numbers
+        apt = Apartment.objects.get(floor__block=block, floor__number=3, number='301')
+        # two floors above the source at +20 each
+        self.assertEqual(apt.price_per_sqm, Decimal('1040'))
+        self.assertEqual(apt.total_price, apt.area * Decimal('1040'))
+
+    def test_copy_never_touches_source_floor_or_duplicates(self):
+        block = self._block()
+        source = self._mixed_floor(block, 1)
+        copy_floor_layout(source_floor=source, target_numbers=[1, 2])  # 1 == source
+        self.assertEqual(source.apartments.count(), 4)  # untouched
+        second = copy_floor_layout(source_floor=source, target_numbers=[2])
+        numbers = list(
+            Apartment.objects.filter(floor__block=block, floor__number=2)
+            .values_list('number', flat=True)
+        )
+        self.assertEqual(len(numbers), len(set(numbers)))  # no duplicate numbers
+        self.assertEqual(len(second), 4)  # tops the floor up rather than clashing
+
+    def test_copies_are_free_regardless_of_source_status(self):
+        block = self._block()
+        source = self._mixed_floor(block, 1)
+        source.apartments.update(status=Apartment.STATUS_SOLD)
+        copy_floor_layout(source_floor=source, target_numbers=[4])
+        statuses = set(
+            Apartment.objects.filter(floor__block=block, floor__number=4)
+            .values_list('status', flat=True)
+        )
+        self.assertEqual(statuses, {Apartment.STATUS_FREE})
 
 
 class DeleteGuardTests(TestCase):

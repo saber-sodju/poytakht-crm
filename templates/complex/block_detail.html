@@ -59,6 +59,10 @@
     <div class="apt-floor">
       <div class="floor-label d-flex align-items-center gap-2">
         <span>Этаж {{ floor.number }}</span>
+        {% if user.can_manage_complex and floor.apartments.exists %}
+        <a href="{% url 'complex:floor_copy_layout' floor.pk %}" class="text-gold small"
+           title="Скопировать планировку этого этажа на другие этажи"><i class="bi bi-copy"></i></a>
+        {% endif %}
         {% if user.can_delete_complex %}
         <a href="{% url 'complex:floor_delete' floor.pk %}" class="text-danger small" title="Удалить этаж"><i class="bi bi-trash"></i></a>
         {% endif %}

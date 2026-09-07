@@ -4,6 +4,8 @@ Complex/Block/Floor/Apartment business logic.
 Mirrors the service-layer pattern from apps/sales/services.py: mutating
 operations live here, not in views, wrapped in transaction.atomic().
 """
+from decimal import Decimal
+
 from django.db import transaction
 from django.core.exceptions import ValidationError
 
@@ -11,45 +13,81 @@ from .models import Floor, Apartment
 
 
 @transaction.atomic
-def bulk_generate_apartments(*, block, floor_from, floor_to, apartments_per_floor,
-                              apartment_type, area, price_per_sqm, start_index=1):
+def create_floors(*, block, count):
     """
-    Create any missing floors in [floor_from, floor_to] for `block`, then
-    generate `apartments_per_floor` apartments on each one.
+    Create floors 1..count for `block`. Floors that already exist are left
+    alone, so re-running only fills the gaps. Floors start out empty —
+    apartments come from copy_floor_layout() or the single-apartment form.
 
-    Apartment numbers are auto-assigned as "<floor><index>" (e.g. 101, 102...)
-    starting at `start_index`; numbers already used on a floor are skipped,
-    so calling this again on the same block only fills in the gaps instead
-    of creating duplicates. Every generated apartment gets the same type/
-    area/price and starts out STATUS_FREE — individual apartments can be
-    corrected afterwards via the normal apartment edit form.
+    Returns the list of floor numbers actually created.
+    """
+    created = []
+    for number in range(1, count + 1):
+        floor, was_created = Floor.objects.get_or_create(block=block, number=number)
+        if was_created:
+            created.append(number)
+    return created
+
+
+@transaction.atomic
+def copy_floor_layout(*, source_floor, target_numbers, price_step_per_floor=Decimal('0')):
+    """
+    Replicate the apartment composition of `source_floor` onto every floor
+    number in `target_numbers` (within the same block).
+
+    This is the real-world pattern: a tower has one typical floor plan — say
+    two 1-room, one 2-room and one 3-room flat — repeated up the building.
+    You lay out one floor by hand, then copy it, instead of describing every
+    apartment 12 times, or pretending every flat in the block is identical.
+
+    - Each copy keeps the source apartment's type and area.
+    - price_per_sqm is shifted by price_step_per_floor for every floor of
+      difference from the source (higher floors usually cost more); pass 0
+      to price every floor the same. total_price is recomputed from the
+      resulting price, never copied blindly.
+    - Numbers are assigned as "<floor><position>" (floor 5 -> 501, 502...),
+      skipping numbers already taken on that floor, so copying twice tops a
+      floor up instead of creating duplicates.
+    - Only the layout is copied. Status/sales/clients never are: every new
+      apartment starts free.
 
     Returns the list of created apartment numbers.
     """
-    total_price = area * price_per_sqm
+    block = source_floor.block
+    source_apartments = list(source_floor.apartments.order_by('number', 'pk'))
     created = []
 
-    for floor_number in range(floor_from, floor_to + 1):
+    for floor_number in target_numbers:
+        if floor_number == source_floor.number:
+            continue  # never copy a floor onto itself
+
         floor, _ = Floor.objects.get_or_create(block=block, number=floor_number)
         existing_numbers = set(floor.apartments.values_list('number', flat=True))
+        floor_gap = floor_number - source_floor.number
 
-        idx = start_index
-        made = 0
-        while made < apartments_per_floor:
-            candidate = f'{floor_number}{idx:02d}'
-            if candidate not in existing_numbers:
-                Apartment.objects.create(
-                    floor=floor,
-                    number=candidate,
-                    apartment_type=apartment_type,
-                    area=area,
-                    price_per_sqm=price_per_sqm,
-                    total_price=total_price,
-                )
-                existing_numbers.add(candidate)
-                created.append(candidate)
-                made += 1
-            idx += 1
+        position = 1
+        for source_apt in source_apartments:
+            # find the next free "<floor><NN>" slot on this floor
+            while f'{floor_number}{position:02d}' in existing_numbers:
+                position += 1
+            number = f'{floor_number}{position:02d}'
+
+            price_per_sqm = source_apt.price_per_sqm + (price_step_per_floor * floor_gap)
+            if price_per_sqm < 0:
+                price_per_sqm = Decimal('0')
+
+            Apartment.objects.create(
+                floor=floor,
+                number=number,
+                apartment_type=source_apt.apartment_type,
+                area=source_apt.area,
+                price_per_sqm=price_per_sqm,
+                total_price=source_apt.area * price_per_sqm,
+                description=source_apt.description,
+            )
+            existing_numbers.add(number)
+            created.append(number)
+            position += 1
 
     return created
 

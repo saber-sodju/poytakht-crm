@@ -8,11 +8,11 @@ from django.http import JsonResponse
 
 from .models import Complex, Block, Floor, Apartment, ConstructionStage, PhotoReport
 from .forms import (
-    ComplexForm, BlockForm, FloorForm, ApartmentForm,
+    ComplexForm, BlockForm, FloorForm, ApartmentForm, FloorLayoutCopyForm,
     ConstructionStageForm, PhotoReportForm,
 )
 from .services import (
-    bulk_generate_apartments,
+    create_floors, copy_floor_layout,
     delete_apartment, delete_floor, delete_block, delete_complex,
 )
 from apps.accounts.decorators import staff_required, director_or_admin_required
@@ -50,20 +50,13 @@ def block_create(request):
     form = BlockForm(request.POST or None)
     if request.method == 'POST' and form.is_valid():
         block = form.save()
-        cd = form.cleaned_data
-        if cd.get('floors_count'):
-            created = bulk_generate_apartments(
-                block=block,
-                floor_from=1, floor_to=cd['floors_count'],
-                apartments_per_floor=cd['apartments_per_floor'],
-                apartment_type=cd['apartment_type'],
-                area=cd['area'],
-                price_per_sqm=cd['price_per_sqm'],
-            )
+        floors_count = form.cleaned_data.get('floors_count')
+        if floors_count:
+            created = create_floors(block=block, count=floors_count)
             messages.success(
                 request,
-                f'Блок «{block.name}» создан, квартир сгенерировано: {len(created)}. '
-                f'Отдельные квартиры/этажи можно поправить на странице блока.',
+                f'Блок «{block.name}» создан, этажей: {len(created)}. '
+                f'Теперь соберите квартиры на одном этаже и скопируйте его на остальные.',
             )
         else:
             messages.success(request, f'Блок «{block.name}» создан.')
@@ -99,6 +92,47 @@ def floor_create(request, block_pk):
         messages.success(request, f'Этаж {floor.number} добавлен.')
         return redirect('complex:block_detail', pk=block_pk)
     return render(request, 'complex/form.html', {'form': form, 'title': f'Новый этаж — {block.name}'})
+
+
+@login_required
+@staff_required
+def floor_copy_layout(request, pk):
+    """Copy this floor's apartment mix onto a range of other floors."""
+    source_floor = get_object_or_404(
+        Floor.objects.select_related('block'), pk=pk
+    )
+    source_apartments = source_floor.apartments.order_by('number', 'pk')
+
+    if not source_apartments.exists():
+        messages.error(
+            request,
+            f'На этаже {source_floor.number} пока нет квартир — сначала добавьте их, '
+            f'потом копируйте планировку на другие этажи.',
+        )
+        return redirect('complex:block_detail', pk=source_floor.block_id)
+
+    form = FloorLayoutCopyForm(request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        cd = form.cleaned_data
+        created = copy_floor_layout(
+            source_floor=source_floor,
+            target_numbers=range(cd['floor_from'], cd['floor_to'] + 1),
+            price_step_per_floor=cd['price_step_per_floor'],
+        )
+        if created:
+            messages.success(request, f'Планировка скопирована, создано квартир: {len(created)}.')
+        else:
+            messages.warning(
+                request,
+                'Ничего не создано — на этих этажах уже есть квартиры с такими номерами.',
+            )
+        return redirect('complex:block_detail', pk=source_floor.block_id)
+
+    return render(request, 'complex/floor_copy.html', {
+        'form': form,
+        'floor': source_floor,
+        'source_apartments': source_apartments,
+    })
 
 
 @login_required

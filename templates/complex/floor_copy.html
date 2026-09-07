@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+
+{% block title %}Копировать планировку этажа {{ floor.number }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-1">
+        <li class="breadcrumb-item"><a href="{% url 'complex:list' %}">Комплекс</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'complex:block_detail' floor.block.pk %}">{{ floor.block.name }}</a></li>
+        <li class="breadcrumb-item active">Этаж {{ floor.number }}</li>
+      </ol>
+    </nav>
+    <h1 class="page-title">Копировать планировку этажа {{ floor.number }}</h1>
+    <p class="page-sub text-muted">Те же квартиры появятся на выбранных этажах — статусы и продажи не копируются, все новые квартиры свободны.</p>
+  </div>
+</div>
+
+<div class="crm-card mb-4">
+  <div class="card-header-crm">
+    <span class="card-title-crm">Что будет скопировано — {{ source_apartments|length }} кв.</span>
+  </div>
+  <table class="crm-table">
+    <thead>
+      <tr><th>№</th><th>Тип</th><th>Площадь</th><th>Цена за м²</th><th>Стоимость</th></tr>
+    </thead>
+    <tbody>
+      {% for apt in source_apartments %}
+      <tr>
+        <td>{{ apt.number }}</td>
+        <td>{{ apt.get_apartment_type_display }}</td>
+        <td>{{ apt.area }} м²</td>
+        <td>${{ apt.price_per_sqm }}</td>
+        <td>${{ apt.total_price }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="form-card">
+  <form method="post">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+    <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+    {% endif %}
+    {% for field in form %}
+    <div class="mb-3">
+      <label class="form-label">{{ field.label }}</label>
+      {{ field }}
+      {% if field.help_text %}<div class="text-muted small mt-1">{{ field.help_text }}</div>{% endif %}
+      {% if field.errors %}<div class="text-danger small mt-1">{{ field.errors }}</div>{% endif %}
+    </div>
+    {% endfor %}
+    <p class="text-muted small">
+      Этаж {{ floor.number }} сам не изменится. Если на каком-то из этажей уже есть
+      квартиры — существующие номера не трогаются, добавятся только недостающие.
+      Номера присваиваются по схеме «этаж + порядковый номер»: 501, 502, 503…
+    </p>
+    <div class="d-flex gap-2 mt-4">
+      <button type="submit" class="btn btn-gold px-4">Скопировать</button>
+      <a href="{% url 'complex:block_detail' floor.block.pk %}" class="btn btn-outline-secondary">Отмена</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
