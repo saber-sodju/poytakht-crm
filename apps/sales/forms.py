@@ -35,6 +35,17 @@ class SaleForm(forms.ModelForm):
         help_text='Если клиент внёс деньги сразу — укажите сумму, платёж создастся автоматически.',
     )
 
+    installment_months = forms.IntegerField(
+        label='Срок рассрочки (месяцев)',
+        required=False,
+        min_value=1,
+        max_value=360,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control', 'placeholder': 'например 12'
+        }),
+        help_text='Остаток после первого взноса разделится на это число равными платежами.',
+    )
+
     class Meta:
         model = Sale
         fields = ['apartment', 'client', 'total_price', 'payment_type',
@@ -59,11 +70,28 @@ class SaleForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
-        initial_payment = cleaned.get('initial_payment')
+        initial_payment = cleaned.get('initial_payment') or 0
         total_price = cleaned.get('total_price')
+        payment_type = cleaned.get('payment_type')
+        months = cleaned.get('installment_months')
+
         if initial_payment and total_price and initial_payment > total_price:
             self.add_error(
                 'initial_payment',
                 'Первый платёж не может быть больше цены продажи.'
             )
+
+        if payment_type in (Sale.PAYMENT_INSTALLMENT, Sale.PAYMENT_MORTGAGE):
+            if not months:
+                self.add_error(
+                    'installment_months',
+                    'Укажите, на сколько месяцев оформляется рассрочка/ипотека — '
+                    'по этому сроку построится график платежей.'
+                )
+            elif total_price is not None and initial_payment >= total_price:
+                self.add_error(
+                    'initial_payment',
+                    'Первый взнос покрывает всю стоимость — рассрочка не нужна, '
+                    'выберите «Полная оплата».'
+                )
         return cleaned

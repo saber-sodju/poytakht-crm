@@ -73,6 +73,7 @@ def sale_create(request):
                 sale_date=cd.get('sale_date'),
                 note=cd.get('note', ''),
                 initial_payment=cd.get('initial_payment'),
+                installment_months=cd.get('installment_months'),
             )
             messages.success(request, f'Продажа квартиры {sale.apartment.number} оформлена!')
             return redirect('sales:sale_detail', pk=sale.pk)

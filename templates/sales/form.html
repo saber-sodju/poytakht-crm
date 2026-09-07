@@ -52,6 +52,15 @@
               {% if form.initial_payment.help_text %}<div class="form-text small text-muted">{{ form.initial_payment.help_text }}</div>{% endif %}
             </div>
           </div>
+          <div class="col-md-6" id="installmentMonthsWrap">
+            <div class="mb-3">
+              <label class="form-label fw-semibold">{{ form.installment_months.label }}</label>
+              {{ form.installment_months }}
+              {% if form.installment_months.errors %}<div class="text-danger small">{{ form.installment_months.errors }}</div>{% endif %}
+              {% if form.installment_months.help_text %}<div class="form-text small text-muted">{{ form.installment_months.help_text }}</div>{% endif %}
+              <div class="form-text small text-gold" id="installmentPreview"></div>
+            </div>
+          </div>
         </div>
         <div class="row">
           <div class="col-md-4">
@@ -106,9 +115,48 @@
       <ul class="small text-muted ps-3">
         <li class="mb-2">Статус квартиры автоматически изменится на <strong>Продана</strong></li>
         <li class="mb-2">Если квартира забронирована — бронь будет отменена</li>
-        <li class="mb-2">После оформления можно добавить платежи и график рассрочки</li>
+        <li class="mb-2">При рассрочке/ипотеке график платежей построится сам: остаток после первого взноса делится поровну на указанный срок</li>
       </ul>
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  const type    = document.getElementById('id_payment_type');
+  const months  = document.getElementById('id_installment_months');
+  const price   = document.getElementById('id_total_price');
+  const initial = document.getElementById('id_initial_payment');
+  const wrap    = document.getElementById('installmentMonthsWrap');
+  const preview = document.getElementById('installmentPreview');
+  if (!type || !months || !wrap) return;
+
+  const needsSchedule = () => type.value === 'installment' || type.value === 'mortgage';
+
+  function render() {
+    // Months only matter for instalments/mortgages — hide the field for a
+    // full payment instead of asking for something meaningless.
+    wrap.hidden = !needsSchedule();
+    if (!needsSchedule()) { preview.textContent = ''; return; }
+
+    const total = parseFloat(price && price.value) || 0;
+    const down  = parseFloat(initial && initial.value) || 0;
+    const n     = parseInt(months.value, 10) || 0;
+    const rest  = total - down;
+    if (n > 0 && rest > 0) {
+      const per = (rest / n).toFixed(2);
+      preview.textContent = 'Остаток $' + rest.toFixed(2) + ' → ' + n + ' × $' + per + ' в месяц';
+    } else {
+      preview.textContent = '';
+    }
+  }
+
+  [type, months, price, initial].forEach(el => {
+    if (el) { el.addEventListener('input', render); el.addEventListener('change', render); }
+  });
+  render();
+})();
+</script>
 {% endblock %}

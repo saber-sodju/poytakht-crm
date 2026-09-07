@@ -622,3 +622,74 @@ class UploadValidatorTests(TestCase):
         bad = SimpleUploadedFile('virus.exe', b'MZ')
         with self.assertRaises(ValidationError):
             validate_image(bad)
+
+
+class InstallmentScheduleTests(TestCase):
+    """Instalment/mortgage: the down payment comes off the price, the rest is
+    split evenly across the agreed number of months."""
+
+    def _sale(self, total, down, months, ptype='installment'):
+        director, apt, client = _base_data()
+        apt.total_price = Decimal(total)
+        apt.save(update_fields=['total_price'])
+        return create_sale(
+            user=director, apartment_id=apt.pk, client=client,
+            total_price=Decimal(total), payment_type=ptype,
+            initial_payment=Decimal(down) if down else None,
+            installment_months=months,
+        )
+
+    def test_down_payment_comes_off_the_price(self):
+        sale = self._sale('100000', '30000', 12)
+        self.assertEqual(sale.paid_amount, Decimal('30000'))
+        self.assertEqual(sale.debt, Decimal('70000'))
+
+    def test_schedule_has_one_row_per_month(self):
+        sale = self._sale('100000', '30000', 12)
+        self.assertEqual(sale.schedule.count(), 12)
+
+    def test_instalments_are_equal_and_sum_to_the_debt(self):
+        sale = self._sale('100000', '30000', 12)
+        amounts = list(sale.schedule.order_by('due_date').values_list('amount', flat=True))
+        # 70000/12 = 5833.33(3): eleven equal instalments, and the last one
+        # carries the rounding remainder so nothing is left hanging.
+        self.assertEqual(amounts[:11], [Decimal('5833.33')] * 11)
+        self.assertEqual(amounts[-1], Decimal('5833.37'))
+        self.assertEqual(sum(amounts), Decimal('70000'))          # exactly the debt
+
+    def test_rounding_remainder_lands_on_the_last_instalment(self):
+        # 100 / 3 = 33.333... — the schedule must still add up to exactly 100
+        sale = self._sale('100', '0', 3)
+        amounts = list(sale.schedule.order_by('due_date').values_list('amount', flat=True))
+        self.assertEqual(amounts, [Decimal('33.33'), Decimal('33.33'), Decimal('33.34')])
+        self.assertEqual(sum(amounts), sale.debt)
+
+    def test_due_dates_are_monthly_from_the_sale_date(self):
+        sale = self._sale('120000', '0', 3)
+        due = list(sale.schedule.order_by('due_date').values_list('due_date', flat=True))
+        self.assertEqual(len(due), 3)
+        for i in range(1, len(due)):
+            gap_months = (due[i].year - due[i - 1].year) * 12 + due[i].month - due[i - 1].month
+            self.assertEqual(gap_months, 1)
+        self.assertGreater(due[0], sale.sale_date)
+
+    def test_full_payment_gets_no_schedule(self):
+        sale = self._sale('50000', '50000', None, ptype='full')
+        self.assertEqual(sale.schedule.count(), 0)
+        self.assertEqual(sale.debt, 0)
+
+    def test_mortgage_also_builds_a_schedule(self):
+        sale = self._sale('200000', '40000', 24, ptype='mortgage')
+        self.assertEqual(sale.schedule.count(), 24)
+        self.assertEqual(sum(sale.schedule.values_list('amount', flat=True)), Decimal('160000'))
+
+    def test_paying_an_instalment_reduces_the_debt(self):
+        from apps.payments.models import Payment
+        sale = self._sale('100000', '30000', 12)
+        first = sale.schedule.order_by('due_date').first()
+        Payment.objects.create(sale=sale, schedule=first, amount=first.amount,
+                               payment_date=first.due_date)
+        sale.refresh_from_db()
+        first.refresh_from_db()
+        self.assertTrue(first.is_paid)
+        self.assertEqual(sale.paid_amount, Decimal('30000') + first.amount)
