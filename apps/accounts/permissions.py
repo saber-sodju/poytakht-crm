@@ -76,10 +76,15 @@ def assert_can_view_payment(user, payment):
 # ── Finance actions ────────────────────────────────────────────────────────────
 
 def can_add_payment(user) -> bool:
+    """Record money coming in. Managers are included: they close the sale and
+    take the instalment at the desk, and a company this size has no accountant
+    on duty for every payment. Deleting a payment stays director-only
+    (can_delete_payment) — booking money in is not the dangerous half."""
     return user.role in (
         CustomUser.ROLE_DIRECTOR,
         CustomUser.ROLE_ADMIN,
         CustomUser.ROLE_ACCOUNTANT,
+        CustomUser.ROLE_MANAGER,
     )
 
 

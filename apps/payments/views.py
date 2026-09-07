@@ -8,7 +8,7 @@ from django.utils import timezone
 
 from .models import Payment, PaymentSchedule
 from .forms import PaymentForm, ScheduleForm
-from apps.accounts.decorators import staff_required, finance_required
+from apps.accounts.decorators import staff_required, finance_required, payment_entry_required
 from apps.accounts.permissions import assert_can_view_payment
 from apps.audit.models import log_action, AuditLog
 
@@ -30,7 +30,7 @@ def payment_list(request):
 
 
 @login_required
-@finance_required
+@payment_entry_required
 def payment_add(request):
     sale_pk = request.GET.get('sale')
     initial = {}
@@ -216,7 +216,7 @@ def payment_receipt_pdf(request, pk):
 
 
 @login_required
-@finance_required
+@payment_entry_required
 def schedule_add(request, sale_pk):
     from apps.sales.models import Sale
     sale = get_object_or_404(Sale, pk=sale_pk)

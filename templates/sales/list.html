@@ -59,7 +59,7 @@
           <td>
             <div class="d-flex gap-1">
               <a href="{% url 'sales:sale_detail' sale.pk %}" class="btn btn-sm btn-outline-secondary">Открыть</a>
-              <a href="{% url 'payments:add' %}?sale={{ sale.pk }}" class="btn btn-sm btn-gold">+ Платёж</a>
+              {% if user.can_add_payment %}<a href="{% url 'payments:add' %}?sale={{ sale.pk }}" class="btn btn-sm btn-gold">+ Платёж</a>{% endif %}
             </div>
           </td>
         </tr>

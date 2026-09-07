@@ -42,6 +42,19 @@ def finance_required(view_func):
     )(view_func)
 
 
+def payment_entry_required(view_func):
+    """Director, Admin, Accountant, Manager — record incoming payments and
+    schedule rows. Wider than finance_required (which guards expenses and
+    financial reporting) on purpose: taking a client's money is part of the
+    sales desk's job. Mirrors CustomUser.can_add_payment."""
+    return role_required(
+        CustomUser.ROLE_DIRECTOR,
+        CustomUser.ROLE_ADMIN,
+        CustomUser.ROLE_ACCOUNTANT,
+        CustomUser.ROLE_MANAGER,
+    )(view_func)
+
+
 # ── Sales & Clients ───────────────────────────────────────────────────────────
 
 def sales_required(view_func):

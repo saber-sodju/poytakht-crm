@@ -93,6 +93,14 @@ class CustomUser(AbstractUser):
         return self.role in (self.ROLE_DIRECTOR, self.ROLE_ADMIN, self.ROLE_ACCOUNTANT)
 
     @property
+    def can_add_payment(self):
+        """Record an incoming payment. Includes managers — they take the money
+        at the sales desk. Gates the "+ Платёж" buttons so the UI matches
+        apps/accounts/permissions.can_add_payment."""
+        return self.role in (self.ROLE_DIRECTOR, self.ROLE_ADMIN,
+                             self.ROLE_ACCOUNTANT, self.ROLE_MANAGER)
+
+    @property
     def can_manage_finance(self):
         """Add/edit payments and expenses."""
         return self.role in (self.ROLE_DIRECTOR, self.ROLE_ADMIN, self.ROLE_ACCOUNTANT)

@@ -15,7 +15,7 @@
     <h1 class="page-title">{{ sale.client.full_name }}</h1>
     <p class="page-sub text-muted">Квартира {{ sale.apartment.number }}, {{ sale.apartment.block.name }}</p>
   </div>
-  <a href="{% url 'payments:add' %}?sale={{ sale.pk }}" class="btn btn-gold">+ Добавить платёж</a>
+  {% if user.can_add_payment %}<a href="{% url 'payments:add' %}?sale={{ sale.pk }}" class="btn btn-gold">+ Добавить платёж</a>{% endif %}
 </div>
 
 <div class="detail-grid">
@@ -60,7 +60,7 @@
     <div class="crm-card mb-3">
       <div class="card-header-crm d-flex justify-content-between">
         <span class="card-title-crm">История платежей</span>
-        <a href="{% url 'payments:add' %}?sale={{ sale.pk }}" class="btn btn-sm btn-gold">+ Платёж</a>
+        {% if user.can_add_payment %}<a href="{% url 'payments:add' %}?sale={{ sale.pk }}" class="btn btn-sm btn-gold">+ Платёж</a>{% endif %}
       </div>
       {% if sale.payments.all %}
       <div class="table-responsive">
@@ -87,7 +87,7 @@
     <div class="crm-card">
       <div class="card-header-crm d-flex justify-content-between">
         <span class="card-title-crm">График платежей</span>
-        <a href="{% url 'payments:schedule_add' sale.pk %}" class="btn btn-sm btn-outline-gold">+ Платёж в график</a>
+        {% if user.can_add_payment %}<a href="{% url 'payments:schedule_add' sale.pk %}" class="btn btn-sm btn-outline-gold">+ Платёж в график</a>{% endif %}
       </div>
       {% if sale.schedule.all %}
       <div class="table-responsive">
@@ -111,7 +111,7 @@
       </div>
       {% else %}
       <div class="p-4 text-center text-muted">
-        <a href="{% url 'payments:schedule_add' sale.pk %}" class="btn btn-outline-gold btn-sm">Добавить график платежей</a>
+        {% if user.can_add_payment %}<a href="{% url 'payments:schedule_add' sale.pk %}" class="btn btn-outline-gold btn-sm">Добавить график платежей</a>{% endif %}
       </div>
       {% endif %}
     </div>

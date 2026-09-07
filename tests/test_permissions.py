@@ -91,7 +91,7 @@ class PermissionFunctionTests(TestCase):
     def test_can_add_payment(self):
         self.assertTrue(can_add_payment(self.director))
         self.assertTrue(can_add_payment(self.accountant))
-        self.assertFalse(can_add_payment(self.manager))
+        self.assertTrue(can_add_payment(self.manager))   # takes payments at the desk
         self.assertFalse(can_add_payment(self.construction))
         self.assertFalse(can_add_payment(self.client_user))
 

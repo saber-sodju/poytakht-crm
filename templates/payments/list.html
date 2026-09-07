@@ -13,7 +13,7 @@
     <a href="{% url 'payments:overdue' %}" class="btn btn-outline-danger">Просрочки</a>
     <a href="{% url 'payments:upcoming' %}" class="btn btn-outline-warning">Ожидаемые</a>
     {% if user.can_see_finance %}
-    <a href="{% url 'payments:add' %}" class="btn btn-gold">+ Платёж</a>
+    {% if user.can_add_payment %}<a href="{% url 'payments:add' %}" class="btn btn-gold">+ Платёж</a>{% endif %}
     {% endif %}
   </div>
 </div>

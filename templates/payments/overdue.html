@@ -35,7 +35,7 @@
           </td>
           <td>
             <a href="{% url 'clients:client_detail' s.sale.client.pk %}" class="btn btn-sm btn-outline-secondary">Клиент</a>
-            <a href="{% url 'payments:add' %}?sale={{ s.sale.pk }}" class="btn btn-sm btn-gold">+ Платёж</a>
+            {% if user.can_add_payment %}<a href="{% url 'payments:add' %}?sale={{ s.sale.pk }}" class="btn btn-sm btn-gold">+ Платёж</a>{% endif %}
           </td>
         </tr>
         {% empty %}

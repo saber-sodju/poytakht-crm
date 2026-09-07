@@ -81,7 +81,7 @@
       </div>
       <div class="p-3 border-top d-flex gap-2">
         <a href="{% url 'sales:sale_detail' sale.pk %}" class="btn btn-sm btn-outline-gold">Детали</a>
-        <a href="{% url 'payments:add' %}?sale={{ sale.pk }}" class="btn btn-sm btn-gold">+ Платёж</a>
+        {% if user.can_add_payment %}<a href="{% url 'payments:add' %}?sale={{ sale.pk }}" class="btn btn-sm btn-gold">+ Платёж</a>{% endif %}
       </div>
     </div>
     {% empty %}
