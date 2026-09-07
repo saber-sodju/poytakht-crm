@@ -2,23 +2,90 @@
 {% load humanize %}
 
 {% block title %}{{ title }}{% endblock %}
+{% block back_url %}{% url 'sales:sale_detail' sale.pk %}{% endblock %}
 
 {% block content %}
-<div class="page-header"><h1 class="page-title">{{ title }}</h1></div>
-<div class="form-card">
-  <form method="post" enctype="multipart/form-data">
-    {% csrf_token %}
-    {% for field in form %}
-    <div class="mb-3">
-      <label class="form-label">{{ field.label }}</label>
-      {{ field }}
-      {% if field.errors %}<div class="text-danger small">{{ field.errors }}</div>{% endif %}
+<div class="page-header">
+  <div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-1">
+        <li class="breadcrumb-item"><a href="{% url 'sales:list' %}">Продажи</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'sales:sale_detail' sale.pk %}">{{ sale.apartment.unit_label }} {{ sale.apartment.number }}</a></li>
+        <li class="breadcrumb-item active">Платёж</li>
+      </ol>
+    </nav>
+    <h1 class="page-title">{{ title }}</h1>
+    <p class="page-sub text-muted">
+      {{ sale.client.full_name }} · {{ sale.apartment.unit_label }} {{ sale.apartment.number }},
+      {{ sale.apartment.block.name }}, этаж {{ sale.apartment.floor.number }}
+    </p>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-lg-6">
+    <div class="form-card">
+      <!-- Only this apartment's account. A client's other apartments have
+           their own debts and schedules and are not touched here. -->
+      <div class="detail-rows mb-4">
+        <div class="detail-row"><span>Цена</span><strong>${{ sale.total_price|floatformat:0|intcomma }}</strong></div>
+        <div class="detail-row"><span>Оплачено</span><strong class="text-success">${{ sale.paid_amount|floatformat:0|intcomma }}</strong></div>
+        <div class="detail-row"><span>Остаток долга</span><strong class="text-danger">${{ sale.debt|floatformat:0|intcomma }}</strong></div>
+      </div>
+
+      <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {{ form.sale }}
+        {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+        {% for field in form %}
+        {% if field.name != 'sale' %}
+        <div class="mb-3">
+          <label class="form-label">{{ field.label }}</label>
+          {{ field }}
+          {% if field.errors %}<div class="text-danger small">{{ field.errors }}</div>{% endif %}
+        </div>
+        {% endif %}
+        {% endfor %}
+        <div class="d-flex gap-2 mt-4">
+          <button type="submit" class="btn btn-gold px-4">Добавить платёж</button>
+          <a href="{% url 'sales:sale_detail' sale.pk %}" class="btn btn-outline-secondary">Отмена</a>
+        </div>
+      </form>
     </div>
-    {% endfor %}
-    <div class="d-flex gap-2 mt-4">
-      <button type="submit" class="btn btn-gold px-4">Добавить платёж</button>
-      <a href="{% url 'payments:list' %}" class="btn btn-outline-secondary">Отмена</a>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="crm-card">
+      <div class="card-header-crm">
+        <span class="card-title-crm">График по этой квартире</span>
+        <span class="text-muted small">{{ schedule_rows|length }} платеж(ей)</span>
+      </div>
+      {% if schedule_rows %}
+      <div class="table-responsive">
+        <table class="crm-table">
+          <thead><tr><th>Дата</th><th>Сумма</th><th>Статус</th></tr></thead>
+          <tbody>
+            {% for row in schedule_rows %}
+            <tr>
+              <td>{{ row.due_date|date:"d.m.Y" }}</td>
+              <td class="fw-semibold">${{ row.amount|floatformat:2|intcomma }}</td>
+              <td>
+                {% if row.is_paid %}<span class="badge bg-success">Оплачено</span>
+                {% elif row.is_overdue %}<span class="badge bg-danger">Просрочено</span>
+                {% elif row.is_due_today %}<span class="badge bg-warning text-dark">Сегодня</span>
+                {% else %}<span class="badge bg-secondary">Ожидает</span>{% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="p-4 text-muted text-center">
+        Графика по этой квартире нет — платёж будет разовым.
+      </div>
+      {% endif %}
     </div>
-  </form>
+  </div>
 </div>
 {% endblock %}

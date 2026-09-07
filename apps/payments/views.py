@@ -1,5 +1,6 @@
 import logging
 from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db import transaction
@@ -7,12 +8,17 @@ from django.db.models import Q, Sum
 from django.utils import timezone
 
 from .models import Payment, PaymentSchedule
-from .forms import PaymentForm, ScheduleForm
+from .forms import PaymentForm, ScheduleForm, SalePickerForm
 from apps.accounts.decorators import staff_required, finance_required, sales_finance_required
 from apps.accounts.permissions import assert_can_view_payment
 from apps.audit.models import log_action, AuditLog
 
 logger = logging.getLogger('apps.payments')
+
+
+def _schedule_rows(sale):
+    """This sale's own instalments, for the table shown beside the form."""
+    return sale.schedule.order_by('due_date') if sale else []
 
 
 @login_required
@@ -32,16 +38,41 @@ def payment_list(request):
 @login_required
 @sales_finance_required
 def payment_add(request):
-    sale_pk = request.GET.get('sale')
-    initial = {}
-    if sale_pk:
-        from apps.sales.models import Sale
-        sale = Sale.objects.filter(pk=sale_pk).first()
-        if sale:
-            initial['sale'] = sale
-            initial['amount'] = sale.remaining_amount
+    """Record a payment against ONE sale — one client, one apartment.
 
-    form = PaymentForm(request.POST or None, request.FILES or None, initial=initial)
+    A client may own several apartments, each with its own debt and its own
+    schedule; those must never be mixed. So the sale is resolved first and
+    everything on the page (the schedule dropdown, the schedule table, the
+    suggested amount) is scoped to it. Without a sale we show only a picker.
+    """
+    from apps.sales.models import Sale
+
+    sale_pk = request.GET.get('sale') or request.POST.get('sale')
+    sale = Sale.objects.filter(pk=sale_pk, is_cancelled=False).select_related(
+        'client', 'apartment__floor__block'
+    ).first() if sale_pk else None
+
+    # Step 1 — nothing chosen yet: ask which apartment's account this is for.
+    if sale is None:
+        picker = SalePickerForm(request.POST or None)
+        if request.method == 'POST' and picker.is_valid():
+            return redirect(f"{reverse('payments:add')}?sale={picker.cleaned_data['sale'].pk}")
+        return render(request, 'payments/pick_sale.html', {
+            'form': picker, 'title': 'Добавить платёж',
+        })
+
+    # Step 2 — scoped to this sale. Default to the next unpaid instalment
+    # rather than the whole remaining debt: payments come month by month.
+    next_due = sale.schedule.filter(is_paid=False).order_by('due_date').first()
+    initial = {
+        'sale': sale,
+        'schedule': next_due,
+        'amount': next_due.amount if next_due else sale.remaining_amount,
+        'payment_date': timezone.now().date(),
+    }
+
+    form = PaymentForm(request.POST or None, request.FILES or None,
+                       initial=initial, sale=sale)
     if request.method == 'POST' and form.is_valid():
         try:
             with transaction.atomic():
@@ -60,7 +91,8 @@ def payment_add(request):
                             f'(${sale.remaining_amount:.2f}) на ${overage:.2f}.'
                         )
                         return render(request, 'payments/form.html', {
-                            'form': form, 'title': 'Добавить платёж'
+                            'form': form, 'title': 'Добавить платёж',
+                            'sale': sale, 'schedule_rows': _schedule_rows(sale),
                         })
 
                 payment.save()
@@ -86,7 +118,10 @@ def payment_add(request):
             logger.error('Failed to add payment: %s', exc, exc_info=True)
             messages.error(request, 'Произошла ошибка при сохранении платежа.')
 
-    return render(request, 'payments/form.html', {'form': form, 'title': 'Добавить платёж'})
+    return render(request, 'payments/form.html', {
+        'form': form, 'title': 'Добавить платёж',
+        'sale': sale, 'schedule_rows': _schedule_rows(sale),
+    })
 
 
 @login_required
@@ -220,7 +255,7 @@ def payment_receipt_pdf(request, pk):
 def schedule_add(request, sale_pk):
     from apps.sales.models import Sale
     sale = get_object_or_404(Sale, pk=sale_pk)
-    form = ScheduleForm(request.POST or None, initial={'sale': sale})
+    form = ScheduleForm(request.POST or None, initial={'sale': sale}, sale=sale)
     if request.method == 'POST' and form.is_valid():
         s = form.save()
         log_action(

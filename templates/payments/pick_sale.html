@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+{% block back_url %}{% url 'payments:list' %}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">{{ title }}</h1>
+    <p class="page-sub text-muted">
+      Сначала выберите, по какой квартире платёж — у клиента может быть несколько,
+      и у каждой свой график и свой долг.
+    </p>
+  </div>
+</div>
+<div class="form-card" style="max-width: 640px;">
+  <form method="post">
+    {% csrf_token %}
+    <div class="mb-3">
+      <label class="form-label">{{ form.sale.label }}</label>
+      {{ form.sale }}
+      {% if form.sale.errors %}<div class="text-danger small mt-1">{{ form.sale.errors }}</div>{% endif %}
+    </div>
+    <div class="d-flex gap-2 mt-4">
+      <button type="submit" class="btn btn-gold px-4">Далее</button>
+      <a href="{% url 'payments:list' %}" class="btn btn-outline-secondary">Отмена</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

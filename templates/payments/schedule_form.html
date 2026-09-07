@@ -2,21 +2,25 @@
 {% load humanize %}
 
 {% block title %}График платежей{% endblock %}
+{% block back_url %}{% url 'sales:sale_detail' sale.pk %}{% endblock %}
 
 {% block content %}
 <div class="page-header">
   <h1 class="page-title">Добавить платёж в график</h1>
-  <p class="page-sub text-muted">{{ sale.client.full_name }} — Кв. {{ sale.apartment.number }}</p>
+  <p class="page-sub text-muted">{{ sale.client.full_name }} — {{ sale.apartment.unit_label }} {{ sale.apartment.number }}, {{ sale.apartment.block.name }}</p>
 </div>
 <div class="form-card">
   <form method="post">
     {% csrf_token %}
+    {{ form.sale }}
     {% for field in form %}
+    {% if field.name != 'sale' %}
     <div class="mb-3">
       <label class="form-label">{{ field.label }}</label>
       {{ field }}
       {% if field.errors %}<div class="text-danger small">{{ field.errors }}</div>{% endif %}
     </div>
+    {% endif %}
     {% endfor %}
     <div class="d-flex gap-2 mt-4">
       <button type="submit" class="btn btn-gold px-4">Добавить</button>

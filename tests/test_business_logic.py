@@ -697,3 +697,80 @@ class InstallmentScheduleTests(TestCase):
         first.refresh_from_db()
         self.assertTrue(first.is_paid)
         self.assertEqual(sale.paid_amount, Decimal('30000') + first.amount)
+
+
+class PaymentScopingTests(TestCase):
+    """A client can own several apartments. Each has its own debt and its own
+    schedule, and the payment form must never mix them."""
+
+    def setUp(self):
+        from django.test import Client as TestClient
+        self.director = User.objects.create_user(
+            username='dir_pay', password='testpass123', role=CustomUser.ROLE_DIRECTOR)
+        cplx = Complex.objects.create(name='C', address='A')
+        block = Block.objects.create(complex=cplx, name='A')
+        floor = Floor.objects.create(block=block, number=1)
+        self.buyer = Client.objects.create(full_name='Умед Двухквартирный', phone='+992900000777')
+
+        # same buyer, two apartments, different debts: 7000 and 8000
+        self.sale_a = self._sell(floor, '101', '10000', '3000', 7)   # debt 7000
+        self.sale_b = self._sell(floor, '102', '10000', '2000', 8)   # debt 8000
+
+        self.c = TestClient()
+        self.c.login(username='dir_pay', password='testpass123')
+
+    def _sell(self, floor, number, price, down, months):
+        apt = Apartment.objects.create(
+            floor=floor, number=number, apartment_type='2', area=Decimal('50'),
+            price_per_sqm=Decimal('200'), total_price=Decimal(price),
+        )
+        return create_sale(
+            user=self.director, apartment_id=apt.pk, client=self.buyer,
+            total_price=Decimal(price), payment_type='installment',
+            initial_payment=Decimal(down), installment_months=months,
+        )
+
+    def test_each_apartment_keeps_its_own_debt(self):
+        self.sale_a.refresh_from_db(); self.sale_b.refresh_from_db()
+        self.assertEqual(self.sale_a.debt, Decimal('7000'))
+        self.assertEqual(self.sale_b.debt, Decimal('8000'))
+
+    def test_form_offers_only_this_sale_schedule(self):
+        r = self.c.get(f'/payments/add/?sale={self.sale_a.pk}')
+        self.assertEqual(r.status_code, 200)
+        offered = set(r.context['form'].fields['schedule'].queryset.values_list('sale_id', flat=True))
+        self.assertEqual(offered, {self.sale_a.pk})          # never the other apartment's rows
+        self.assertEqual(r.context['sale'].pk, self.sale_a.pk)
+        self.assertEqual(
+            set(row.sale_id for row in r.context['schedule_rows']), {self.sale_a.pk}
+        )
+
+    def test_cannot_settle_another_apartments_instalment(self):
+        other_row = self.sale_b.schedule.order_by('due_date').first()
+        r = self.c.post(f'/payments/add/?sale={self.sale_a.pk}', {
+            'sale': self.sale_a.pk,
+            'schedule': other_row.pk,            # belongs to apartment 102
+            'amount': '100',
+            'payment_date': '2026-10-01',
+            'note': '',
+        })
+        self.assertEqual(r.status_code, 200)      # re-rendered with an error
+        other_row.refresh_from_db()
+        self.assertFalse(other_row.is_paid)       # untouched
+        self.assertEqual(Payment.objects.filter(sale=self.sale_a).count(), 1)  # only the down payment
+
+    def test_payment_only_moves_its_own_sale(self):
+        row = self.sale_a.schedule.order_by('due_date').first()
+        self.c.post(f'/payments/add/?sale={self.sale_a.pk}', {
+            'sale': self.sale_a.pk, 'schedule': row.pk,
+            'amount': str(row.amount), 'payment_date': '2026-10-01', 'note': '',
+        })
+        self.sale_a.refresh_from_db(); self.sale_b.refresh_from_db()
+        self.assertEqual(self.sale_a.debt, Decimal('7000') - row.amount)
+        self.assertEqual(self.sale_b.debt, Decimal('8000'))   # the other flat is untouched
+
+    def test_without_a_sale_it_asks_which_apartment_first(self):
+        r = self.c.get('/payments/add/')
+        self.assertEqual(r.status_code, 200)
+        self.assertTemplateUsed(r, 'payments/pick_sale.html')
+        self.assertNotIn('schedule', r.context['form'].fields)   # no global schedule list
