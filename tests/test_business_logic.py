@@ -251,6 +251,32 @@ class FloorLayoutTests(TestCase):
         self.assertEqual(len(numbers), len(set(numbers)))  # no duplicate numbers
         self.assertEqual(len(second), 4)  # tops the floor up rather than clashing
 
+    def test_commercial_ground_floor_stays_separate_from_the_flats(self):
+        """Ground floors are often shops. They're the same kind of sellable
+        unit, just typed differently — and copying the residential floor up
+        must never turn flats into shops or vice versa."""
+        block = self._block()
+        shops = Floor.objects.create(block=block, number=1)
+        for i in (1, 2):
+            Apartment.objects.create(
+                floor=shops, number=f'1{i:02d}',
+                apartment_type=Apartment.TYPE_COMMERCIAL,
+                area=Decimal('120'), price_per_sqm=Decimal('1500'),
+                total_price=Decimal('180000'),
+            )
+        source = self._mixed_floor(block, 2)
+        copy_floor_layout(source_floor=source, target_numbers=range(3, 6))
+
+        shop = shops.apartments.first()
+        self.assertTrue(shop.is_commercial)
+        self.assertEqual(shop.unit_label, 'Помещение')
+        self.assertIn('Помещение', str(shop))
+        # the shops are untouched by the copy, and nothing above is commercial
+        self.assertEqual(shops.apartments.count(), 2)
+        upper = Apartment.objects.filter(floor__block=block, floor__number__gte=3)
+        self.assertEqual(upper.count(), 12)
+        self.assertFalse(upper.filter(apartment_type=Apartment.TYPE_COMMERCIAL).exists())
+
     def test_copies_are_free_regardless_of_source_status(self):
         block = self._block()
         source = self._mixed_floor(block, 1)

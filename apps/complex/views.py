@@ -69,11 +69,13 @@ def block_create(request):
 def block_detail(request, pk):
     block = get_object_or_404(Block.objects.prefetch_related('floors__apartments'), pk=pk)
     floors = block.floors.prefetch_related('apartments').order_by('-number')
+    units = Apartment.objects.filter(floor__block=block)
     stats = {
-        'total': Apartment.objects.filter(floor__block=block).count(),
-        'free': Apartment.objects.filter(floor__block=block, status='free').count(),
-        'booked': Apartment.objects.filter(floor__block=block, status='booked').count(),
-        'sold': Apartment.objects.filter(floor__block=block, status='sold').count(),
+        'total': units.count(),
+        'free': units.filter(status='free').count(),
+        'booked': units.filter(status='booked').count(),
+        'sold': units.filter(status='sold').count(),
+        'commercial': units.filter(apartment_type=Apartment.TYPE_COMMERCIAL).count(),
     }
     stages = block.stages.all().order_by('stage')
     return render(request, 'complex/block_detail.html', {
@@ -154,7 +156,7 @@ def apartment_create(request, floor_pk=None):
     form = ApartmentForm(request.POST or None, request.FILES or None, initial=initial)
     if request.method == 'POST' and form.is_valid():
         apt = form.save()
-        messages.success(request, f'Квартира {apt.number} добавлена.')
+        messages.success(request, f'{apt.unit_label} {apt.number} добавлена.')
         return redirect('complex:apartment_detail', pk=apt.pk)
     return render(request, 'complex/apartment_form.html', {'form': form, 'title': 'Новая квартира'})
 
@@ -180,6 +182,7 @@ def apartment_api(request, pk):
     data = {
         'id': apt.pk,
         'number': apt.number,
+        'unit_label': apt.unit_label,
         'type': apt.get_apartment_type_display(),
         'area': str(apt.area),
         'price_per_sqm': str(apt.price_per_sqm),
@@ -206,7 +209,7 @@ def apartment_delete(request, pk):
         except ValidationError as exc:
             messages.error(request, exc.message)
             return redirect('complex:apartment_detail', pk=pk)
-        messages.success(request, f'Квартира {apt.number} удалена.')
+        messages.success(request, f'{apt.unit_label} {apt.number} удалена.')
         return redirect('complex:block_detail', pk=block_pk)
     return render(request, 'complex/confirm_delete.html', {
         'title': f'Удалить квартиру {apt.number}?',

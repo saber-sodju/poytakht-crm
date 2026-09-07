@@ -40,6 +40,11 @@
   <div class="kpi-card">
     <div class="kpi-body"><div class="kpi-value text-danger">{{ stats.sold }}</div><div class="kpi-label">Продано</div></div>
   </div>
+  {% if stats.commercial %}
+  <div class="kpi-card">
+    <div class="kpi-body"><div class="kpi-value">{{ stats.commercial }}</div><div class="kpi-label">Магазины / коммерция</div></div>
+  </div>
+  {% endif %}
 </div>
 
 <!-- Apartment Map -->
@@ -52,6 +57,7 @@
       <span class="legend-item"><span class="legend-dot bg-danger"></span>Продана</span>
       <span class="legend-item"><span class="legend-dot bg-secondary"></span>Недоступна</span>
       <span class="legend-item"><span class="legend-dot" style="background:#fd7e14;"></span>Есть остаток по рассрочке/ипотеке</span>
+      <span class="legend-item"><span class="legend-dot legend-dot-commercial"></span>Магазин / коммерция</span>
     </div>
   </div>
   <div class="apt-map" id="aptMap">
@@ -69,10 +75,10 @@
       </div>
       <div class="floor-apartments">
         {% for apt in floor.apartments.all %}
-        <button class="apt-cell apt-{{ apt.status }}{% if apt.payment_badge %} apt-credit-flag{% endif %}"
+        <button class="apt-cell apt-{{ apt.status }}{% if apt.payment_badge %} apt-credit-flag{% endif %}{% if apt.is_commercial %} apt-commercial{% endif %}"
                 data-apt-id="{{ apt.pk }}"
                 data-apt-url="{% url 'complex:apartment_api' apt.pk %}"
-                title="Кв. {{ apt.number }} — {{ apt.get_status_display }}{% if apt.payment_badge %} ({{ apt.payment_badge.label }}){% endif %}">
+                title="{{ apt.unit_label }} {{ apt.number }} — {{ apt.get_apartment_type_display }}, {{ apt.get_status_display }}{% if apt.payment_badge %} ({{ apt.payment_badge.label }}){% endif %}">
           {{ apt.number }}
         </button>
         {% empty %}
@@ -167,7 +173,7 @@ document.querySelectorAll('.apt-cell[data-apt-id]').forEach(btn => {
     document.getElementById('aptModalBody').innerHTML = '<div class="text-center py-3"><div class="spinner-border text-gold"></div></div>';
     modal.show();
     fetch(url).then(r => r.json()).then(data => {
-      document.getElementById('aptModalTitle').textContent = 'Квартира ' + data.number;
+      document.getElementById('aptModalTitle').textContent = (data.unit_label || 'Кв.') + ' ' + data.number;
       document.getElementById('aptModalLink').href = data.detail_url;
       const statusColors = {free: 'success', booked: 'warning', sold: 'danger', unavailable: 'secondary'};
       document.getElementById('aptModalBody').innerHTML = `

@@ -100,6 +100,8 @@ class Apartment(models.Model):
         (STATUS_UNAVAILABLE, 'Недоступна'),
     ]
 
+    TYPE_COMMERCIAL = 'commercial'
+
     TYPE_CHOICES = [
         ('1', '1-комнатная'),
         ('2', '2-комнатная'),
@@ -107,6 +109,10 @@ class Apartment(models.Model):
         ('4', '4-комнатная'),
         ('studio', 'Студия'),
         ('penthouse', 'Пентхаус'),
+        # Ground floors are usually retail rather than flats. A shop is sold
+        # exactly like an apartment — area, price per m², buyer, instalments —
+        # so it lives in the same model and only differs by type/label.
+        (TYPE_COMMERCIAL, 'Магазин / коммерция'),
     ]
 
     floor = models.ForeignKey(Floor, on_delete=models.CASCADE, related_name='apartments', verbose_name='Этаж')
@@ -130,11 +136,20 @@ class Apartment(models.Model):
         ordering = ['floor__number', 'number']
 
     def __str__(self):
-        return f'Кв. {self.number} ({self.floor})'
+        return f'{self.unit_label} {self.number} ({self.floor})'
 
     @property
     def block(self):
         return self.floor.block
+
+    @property
+    def is_commercial(self):
+        return self.apartment_type == self.TYPE_COMMERCIAL
+
+    @property
+    def unit_label(self):
+        """"Помещение" for a shop, "Кв." for a flat."""
+        return 'Помещение' if self.is_commercial else 'Кв.'
 
     @property
     def status_color(self):

@@ -506,6 +506,14 @@ body { margin: 0; font-family: 'Arial', sans-serif; background: #f0ebe0; color: 
   background: #fd7e14;
   border: 1.5px solid #fff;
 }
+/* Commercial unit (ground-floor shop). Keeps the status colour — the dashed
+   outline just says "this isn't a flat" without fighting free/booked/sold. */
+.apt-commercial { border-style: dashed; border-width: 2px; font-style: italic; }
+.legend-dot-commercial {
+  background: transparent;
+  border: 2px dashed var(--dark-3);
+  box-sizing: border-box;
+}
 .apt-add:hover { background: rgba(212,175,55,0.25); color: var(--gold-dark); }
 
 .apt-legend { display: flex; gap: 16px; flex-wrap: wrap; }
