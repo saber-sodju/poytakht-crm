@@ -30,7 +30,8 @@
 </div>
 
 <div class="row">
-  <!-- Expenses by category chart -->
+  <!-- Expenses by category chart — company spending, owner/accountant only -->
+  {% if user.can_see_finance %}
   <div class="col-lg-6 mb-4">
     <div class="crm-card h-100">
       <div class="card-header-crm"><span class="card-title-crm">Расходы по категориям</span></div>
@@ -39,9 +40,10 @@
       </div>
     </div>
   </div>
+  {% endif %}
 
-  <!-- Debts table -->
-  <div class="col-lg-6 mb-4">
+  <!-- Debts table — the manager's working list: who owes what -->
+  <div class="{% if user.can_see_finance %}col-lg-6{% else %}col-12{% endif %} mb-4">
     <div class="crm-card h-100">
       <div class="card-header-crm d-flex justify-content-between">
         <span class="card-title-crm">Крупнейшие долги</span>
@@ -81,10 +83,12 @@
     <div class="kpi-icon bg-success-soft"><i class="bi bi-bag-check text-success"></i></div>
     <div class="kpi-body"><div class="kpi-label">Все продажи</div></div>
   </a>
+  {% if user.can_see_finance %}
   <a href="{% url 'expenses:list' %}" class="kpi-card text-decoration-none">
     <div class="kpi-icon bg-primary-soft"><i class="bi bi-receipt text-primary"></i></div>
     <div class="kpi-body"><div class="kpi-label">Все расходы</div></div>
   </a>
+  {% endif %}
 </div>
 {% endblock %}
 

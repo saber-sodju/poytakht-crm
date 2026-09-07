@@ -526,10 +526,14 @@ class ViewAccessTests(TestCase):
         resp = self.client.get('/reports/')
         self.assertEqual(resp.status_code, 302)
 
-    def test_manager_cannot_see_reports(self):
+    def test_manager_sees_reports_but_not_company_spending(self):
+        # The manager runs the sales desk, so the sales/debt report is theirs;
+        # expenses and profit inside it stay owner-level and aren't even sent.
         self.client.login(username='mgr', password='testpass123')
         resp = self.client.get('/reports/')
-        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp.status_code, 200)
+        self.assertIsNone(resp.context['profit'])
+        self.assertEqual(resp.context['exp_by_cat'], {})
 
     def test_warehouse_cannot_see_clients(self):
         self.client.login(username='wh', password='testpass123')

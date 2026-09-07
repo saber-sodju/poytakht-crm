@@ -10,7 +10,7 @@ from apps.sales.models import Sale, Booking
 from apps.payments.models import Payment, PaymentSchedule
 from apps.expenses.models import Expense
 from apps.audit.models import AuditLog
-from apps.accounts.decorators import finance_required, staff_required
+from apps.accounts.decorators import finance_required, staff_required, sales_finance_required
 
 
 @login_required
@@ -175,7 +175,7 @@ def client_dashboard(request):
 
 
 @login_required
-@finance_required
+@sales_finance_required
 def reports_view(request):
     today = timezone.now().date()
     year = int(request.GET.get('year', today.year))
@@ -212,13 +212,18 @@ def reports_view(request):
     months_ru = ['', 'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
                  'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь']
 
+    # Managers run the sales desk and see sales/payments/debts, but company
+    # spending and profit are owner-level: don't just hide them in the
+    # template, keep the figures out of the response entirely.
+    show_company_finance = request.user.can_see_finance
+
     context = {
         'sales_count': sales_count,
         'sales_amount': sales_amount,
         'payments_amount': payments_amount,
-        'exp_by_cat': exp_by_cat,
-        'total_expenses': total_expenses,
-        'profit': float(payments_amount) - total_expenses,
+        'exp_by_cat': exp_by_cat if show_company_finance else {},
+        'total_expenses': total_expenses if show_company_finance else None,
+        'profit': (float(payments_amount) - total_expenses) if show_company_finance else None,
         'debt_sales': debt_sales,
         'year': year,
         'month': month,

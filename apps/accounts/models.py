@@ -89,8 +89,18 @@ class CustomUser(AbstractUser):
 
     @property
     def can_see_finance(self):
-        """View financial data: income, expenses, profit, debt."""
+        """Company finance: expenses, payroll, profit. Owner-level data —
+        deliberately NOT the manager's, even though they run the sales desk."""
         return self.role in (self.ROLE_DIRECTOR, self.ROLE_ADMIN, self.ROLE_ACCOUNTANT)
+
+    @property
+    def can_see_sales_finance(self):
+        """Money that flows through the sales desk: payments received, client
+        debts, what's still owed and when. The manager's core job is exactly
+        this — who bought what, how much is left, when to call them — so it's
+        split out from can_see_finance (company spending and profit)."""
+        return self.role in (self.ROLE_DIRECTOR, self.ROLE_ADMIN,
+                             self.ROLE_ACCOUNTANT, self.ROLE_MANAGER)
 
     @property
     def can_add_payment(self):
@@ -141,8 +151,11 @@ class CustomUser(AbstractUser):
 
     @property
     def can_view_reports(self):
-        """Reports are for management and accountants."""
-        return self.role in (self.ROLE_DIRECTOR, self.ROLE_ADMIN, self.ROLE_ACCOUNTANT)
+        """Reports: sales, payments received and outstanding debts. Managers
+        included — the debt list is how they know who to chase. The expenses
+        and profit sections inside the report stay behind can_see_finance."""
+        return self.role in (self.ROLE_DIRECTOR, self.ROLE_ADMIN,
+                             self.ROLE_ACCOUNTANT, self.ROLE_MANAGER)
 
     @property
     def display_name(self):

@@ -275,3 +275,48 @@ class ComplexAccessByRoleTests(TestCase):
         c.login(username='acc_no', password='testpass123')
         r = c.get('/complex/create/', follow=True)
         self.assertContains(r, 'нет доступа')
+
+
+class ManagerSalesDeskTests(TestCase):
+    """The manager is the reception desk and, for now, the only person using
+    the system: everything about selling must work for them, while the
+    owner's company finance stays out of reach."""
+
+    def setUp(self):
+        self.mgr = _make_user(CustomUser.ROLE_MANAGER, 'desk')
+        self.c = Client()
+        self.c.login(username='desk', password='testpass123')
+
+    def test_sales_desk_pages_are_reachable(self):
+        for url in ['/complex/', '/complex/create/', '/clients/', '/clients/create/',
+                    '/sales/', '/sales/create/', '/payments/', '/payments/add/',
+                    '/payments/overdue/', '/payments/upcoming/', '/reports/']:
+            r = self.c.get(url, follow=True)
+            self.assertNotContains(r, 'нет доступа', msg_prefix=url)
+
+    def test_sees_money_owed_but_not_company_spending(self):
+        u = self.mgr
+        self.assertTrue(u.can_see_sales_finance)   # payments in, client debts
+        self.assertTrue(u.can_view_reports)
+        self.assertTrue(u.can_add_payment)
+        self.assertFalse(u.can_see_finance)        # expenses, payroll, profit
+
+    def test_report_withholds_expense_figures_from_manager(self):
+        r = self.c.get('/reports/')
+        self.assertEqual(r.status_code, 200)
+        self.assertIsNone(r.context['total_expenses'])
+        self.assertIsNone(r.context['profit'])
+        self.assertEqual(r.context['exp_by_cat'], {})
+        self.assertNotContains(r, 'Расходы по категориям')
+
+    def test_owner_still_sees_the_full_report(self):
+        _make_user(CustomUser.ROLE_DIRECTOR, 'owner')
+        c = Client()
+        c.login(username='owner', password='testpass123')
+        r = c.get('/reports/')
+        self.assertIsNotNone(r.context['total_expenses'])
+        self.assertContains(r, 'Расходы по категориям')
+
+    def test_expenses_section_stays_closed_to_manager(self):
+        r = self.c.get('/expenses/', follow=True)
+        self.assertContains(r, 'нет доступа')

@@ -42,11 +42,11 @@ def finance_required(view_func):
     )(view_func)
 
 
-def payment_entry_required(view_func):
-    """Director, Admin, Accountant, Manager — record incoming payments and
-    schedule rows. Wider than finance_required (which guards expenses and
-    financial reporting) on purpose: taking a client's money is part of the
-    sales desk's job. Mirrors CustomUser.can_add_payment."""
+def sales_finance_required(view_func):
+    """Director, Admin, Accountant, Manager — anything to do with money moving
+    through the sales desk: recording payments, schedule rows, and the sales/
+    debt reports. Wider than finance_required (company expenses, payroll,
+    profit) on purpose. Mirrors can_add_payment / can_see_sales_finance."""
     return role_required(
         CustomUser.ROLE_DIRECTOR,
         CustomUser.ROLE_ADMIN,

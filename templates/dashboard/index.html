@@ -30,8 +30,9 @@
 </div>
 {% endif %}
 
-{% if user.can_see_finance %}
-<!-- KPI row 1: Деньги — главное для владельца -->
+{% if user.can_see_sales_finance %}
+<!-- KPI row 1: Деньги. Полученное и долги видит и менеджер (это его работа);
+     потраченное и прибыль — только владелец/бухгалтер. -->
 <div class="kpi-grid mb-4">
   <div class="kpi-card">
     <div class="kpi-icon bg-primary-soft"><i class="bi bi-cash-coin text-primary"></i></div>
@@ -40,6 +41,7 @@
       <div class="kpi-label">Получено в этом месяце</div>
     </div>
   </div>
+  {% if user.can_see_finance %}
   <div class="kpi-card">
     <div class="kpi-icon bg-danger-soft"><i class="bi bi-receipt text-danger"></i></div>
     <div class="kpi-body">
@@ -58,6 +60,7 @@
       <div class="kpi-label">Прибыль месяца</div>
     </div>
   </div>
+  {% endif %}
   <div class="kpi-card">
     <div class="kpi-icon bg-warning-soft"><i class="bi bi-exclamation-diamond text-warning"></i></div>
     <div class="kpi-body">
