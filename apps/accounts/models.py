@@ -81,7 +81,13 @@ class CustomUser(AbstractUser):
 
     @property
     def can_manage_complex(self):
-        """Manage apartment complex, blocks, floors."""
+        """Create/edit apartment complexes, blocks, floors, apartments."""
+        return self.role in (self.ROLE_DIRECTOR, self.ROLE_ADMIN, self.ROLE_MANAGER)
+
+    @property
+    def can_delete_complex(self):
+        """Delete complexes/blocks/floors/apartments — director/admin only,
+        deliberately stricter than can_manage_complex (create/edit)."""
         return self.role in (self.ROLE_DIRECTOR, self.ROLE_ADMIN)
 
     @property
