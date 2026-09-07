@@ -15,7 +15,7 @@ from .services import (
     create_floors, copy_floor_layout,
     delete_apartment, delete_floor, delete_block, delete_complex,
 )
-from apps.accounts.decorators import staff_required, director_or_admin_required
+from apps.accounts.decorators import staff_required, complex_required
 
 
 @login_required
@@ -26,7 +26,7 @@ def complex_list(request):
 
 
 @login_required
-@staff_required
+@complex_required
 def complex_create(request):
     form = ComplexForm(request.POST or None)
     if request.method == 'POST' and form.is_valid():
@@ -45,7 +45,7 @@ def complex_detail(request, pk):
 
 
 @login_required
-@staff_required
+@complex_required
 def block_create(request):
     form = BlockForm(request.POST or None)
     if request.method == 'POST' and form.is_valid():
@@ -84,7 +84,7 @@ def block_detail(request, pk):
 
 
 @login_required
-@staff_required
+@complex_required
 def floor_create(request, block_pk):
     block = get_object_or_404(Block, pk=block_pk)
     initial = {'block': block}
@@ -97,7 +97,7 @@ def floor_create(request, block_pk):
 
 
 @login_required
-@staff_required
+@complex_required
 def floor_copy_layout(request, pk):
     """Copy this floor's apartment mix onto a range of other floors."""
     source_floor = get_object_or_404(
@@ -149,7 +149,7 @@ def apartment_detail(request, pk):
 
 
 @login_required
-@staff_required
+@complex_required
 def apartment_create(request, floor_pk=None):
     floor = get_object_or_404(Floor, pk=floor_pk) if floor_pk else None
     initial = {'floor': floor} if floor else {}
@@ -162,7 +162,7 @@ def apartment_create(request, floor_pk=None):
 
 
 @login_required
-@staff_required
+@complex_required
 def apartment_edit(request, pk):
     apt = get_object_or_404(Apartment, pk=pk)
     form = ApartmentForm(request.POST or None, request.FILES or None, instance=apt)
@@ -199,7 +199,7 @@ def apartment_api(request, pk):
 
 
 @login_required
-@director_or_admin_required
+@complex_required
 def apartment_delete(request, pk):
     apt = get_object_or_404(Apartment, pk=pk)
     block_pk = apt.block.pk
@@ -219,7 +219,7 @@ def apartment_delete(request, pk):
 
 
 @login_required
-@director_or_admin_required
+@complex_required
 def floor_delete(request, pk):
     floor = get_object_or_404(Floor, pk=pk)
     block_pk = floor.block.pk
@@ -239,7 +239,7 @@ def floor_delete(request, pk):
 
 
 @login_required
-@director_or_admin_required
+@complex_required
 def block_delete(request, pk):
     block = get_object_or_404(Block, pk=pk)
     complex_pk = block.complex.pk
@@ -259,7 +259,7 @@ def block_delete(request, pk):
 
 
 @login_required
-@director_or_admin_required
+@complex_required
 def complex_delete(request, pk):
     complex_obj = get_object_or_404(Complex, pk=pk)
     if request.method == 'POST':

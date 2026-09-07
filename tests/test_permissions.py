@@ -2,7 +2,7 @@
 Role and permission tests.
 Run with: py manage.py test tests.test_permissions
 """
-from django.test import TestCase, RequestFactory
+from django.test import TestCase, RequestFactory, Client
 from django.contrib.auth import get_user_model
 from apps.accounts.models import CustomUser
 from apps.accounts.decorators import (
@@ -221,3 +221,57 @@ class SaleModelTests(TestCase):
         )
         self.assertFalse(sale.is_cancelled)
         self.assertIsNone(sale.cancelled_at)
+
+
+class ComplexAccessByRoleTests(TestCase):
+    """Who may create/edit/delete complexes, blocks, floors and apartments."""
+
+    def _apartment(self):
+        from decimal import Decimal
+        from apps.complex.models import Complex, Block, Floor, Apartment
+        cplx = Complex.objects.create(name='C', address='A')
+        block = Block.objects.create(complex=cplx, name='B')
+        floor = Floor.objects.create(block=block, number=1)
+        return Apartment.objects.create(
+            floor=floor, number='101', apartment_type='2', area=Decimal('50'),
+            price_per_sqm=Decimal('1000'), total_price=Decimal('50000'),
+        )
+
+    def test_manage_flag_by_role(self):
+        for role in (CustomUser.ROLE_DIRECTOR, CustomUser.ROLE_ADMIN, CustomUser.ROLE_MANAGER):
+            self.assertTrue(_make_user(role, f'ok_{role}').can_manage_complex, role)
+        for role in (CustomUser.ROLE_ACCOUNTANT, CustomUser.ROLE_WAREHOUSE, CustomUser.ROLE_CLIENT):
+            self.assertFalse(_make_user(role, f'no_{role}').can_manage_complex, role)
+
+    def test_manager_can_delete_a_mistake(self):
+        apt = self._apartment()
+        _make_user(CustomUser.ROLE_MANAGER, 'mgr_del')
+        c = Client()
+        c.login(username='mgr_del', password='testpass123')
+        r = c.post(f'/complex/apartments/{apt.pk}/delete/', follow=True)
+        self.assertEqual(r.status_code, 200)
+        from apps.complex.models import Apartment
+        self.assertFalse(Apartment.objects.filter(pk=apt.pk).exists())
+
+    def test_manager_still_cannot_delete_something_sold(self):
+        from decimal import Decimal
+        from apps.clients.models import Client as ClientModel
+        from apps.sales.models import Sale
+        from apps.complex.models import Apartment
+        apt = self._apartment()
+        director = _make_user(CustomUser.ROLE_DIRECTOR, 'dir_guard')
+        buyer = ClientModel.objects.create(full_name='Buyer', phone='+992900000000')
+        Sale.objects.create(apartment=apt, client=buyer, total_price=Decimal('50000'),
+                            payment_type='full', created_by=director)
+        _make_user(CustomUser.ROLE_MANAGER, 'mgr_guard')
+        c = Client()
+        c.login(username='mgr_guard', password='testpass123')
+        c.post(f'/complex/apartments/{apt.pk}/delete/', follow=True)
+        self.assertTrue(Apartment.objects.filter(pk=apt.pk).exists())
+
+    def test_accountant_cannot_reach_complex_management(self):
+        _make_user(CustomUser.ROLE_ACCOUNTANT, 'acc_no')
+        c = Client()
+        c.login(username='acc_no', password='testpass123')
+        r = c.get('/complex/create/', follow=True)
+        self.assertContains(r, 'нет доступа')

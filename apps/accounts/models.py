@@ -81,14 +81,11 @@ class CustomUser(AbstractUser):
 
     @property
     def can_manage_complex(self):
-        """Create/edit apartment complexes, blocks, floors, apartments."""
+        """Create, edit and delete complexes, blocks, floors, apartments.
+        Deleting anything with a sale or booking behind it is blocked for
+        everyone in apps/complex/services.py — so this covers fixing your own
+        data-entry mistakes, not erasing sales history."""
         return self.role in (self.ROLE_DIRECTOR, self.ROLE_ADMIN, self.ROLE_MANAGER)
-
-    @property
-    def can_delete_complex(self):
-        """Delete complexes/blocks/floors/apartments — director/admin only,
-        deliberately stricter than can_manage_complex (create/edit)."""
-        return self.role in (self.ROLE_DIRECTOR, self.ROLE_ADMIN)
 
     @property
     def can_see_finance(self):

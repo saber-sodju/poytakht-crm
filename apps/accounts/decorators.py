@@ -53,6 +53,21 @@ def sales_required(view_func):
     )(view_func)
 
 
+# ── Complex / blocks / floors / apartments ────────────────────────────────────
+
+def complex_required(view_func):
+    """Director, Admin, Manager — create, edit and delete complexes, blocks,
+    floors and apartments. Matches CustomUser.can_manage_complex, which gates
+    the same buttons in the templates. Deleting anything that already has a
+    sale or booking is blocked separately in apps/complex/services.py,
+    regardless of role."""
+    return role_required(
+        CustomUser.ROLE_DIRECTOR,
+        CustomUser.ROLE_ADMIN,
+        CustomUser.ROLE_MANAGER,
+    )(view_func)
+
+
 # ── General staff (everyone except warehouse, construction and clients) ────────
 
 def staff_required(view_func):

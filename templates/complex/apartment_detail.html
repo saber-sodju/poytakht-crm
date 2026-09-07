@@ -20,7 +20,7 @@
     {% if user.can_manage_complex %}
     <a href="{% url 'complex:apartment_edit' apt.pk %}" class="btn btn-outline-gold">Редактировать</a>
     {% endif %}
-    {% if user.can_delete_complex %}
+    {% if user.can_manage_complex %}
     <a href="{% url 'complex:apartment_delete' apt.pk %}" class="btn btn-outline-danger">Удалить</a>
     {% endif %}
     {% if apt.status == 'free' %}
