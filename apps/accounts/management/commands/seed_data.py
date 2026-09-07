@@ -24,10 +24,15 @@ class Command(BaseCommand):
             '--users-only', action='store_true',
             help='Only create the 3 staff accounts — skip all demo complex/clients/sales/expenses/workers/materials data.',
         )
+        parser.add_argument(
+            '--keep-users', action='store_true',
+            help='With --reset: wipe business data but leave existing accounts alone '
+                 '(keeps their current passwords and login history).',
+        )
 
     def handle(self, *args, **kwargs):
         if kwargs.get('reset'):
-            self._wipe_all()
+            self._wipe_all(keep_users=kwargs.get('keep_users', False))
 
         self.stdout.write('Creating seed data...')
 
@@ -51,7 +56,7 @@ class Command(BaseCommand):
 
     # ── Wipe ──────────────────────────────────────────────────────────────────
 
-    def _wipe_all(self):
+    def _wipe_all(self, keep_users=False):
         from apps.audit.models import AuditLog
         from apps.payments.models import Payment, PaymentSchedule
         from apps.sales.models import Sale, Booking
@@ -85,8 +90,15 @@ class Command(BaseCommand):
         Material.objects.all().delete()
         Supplier.objects.all().delete()
         Notification.objects.all().delete()
-        CustomUser.objects.all().delete()
-        self.stdout.write(self.style.WARNING('  Wiped ALL existing data.'))
+        if keep_users:
+            # Clearing out test data before handover: the real staff accounts
+            # stay exactly as they are — same passwords, same login history.
+            self.stdout.write(self.style.WARNING(
+                f'  Wiped all business data. Kept {CustomUser.objects.count()} account(s).'
+            ))
+        else:
+            CustomUser.objects.all().delete()
+            self.stdout.write(self.style.WARNING('  Wiped ALL existing data, including accounts.'))
 
     # ── Users ─────────────────────────────────────────────────────────────────
 
