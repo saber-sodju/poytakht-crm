@@ -112,8 +112,16 @@ def can_create_sale(user) -> bool:
 
 
 def can_cancel_sale(user) -> bool:
-    """Cancelling a sale requires director or admin approval."""
-    return user.role in (CustomUser.ROLE_DIRECTOR, CustomUser.ROLE_ADMIN)
+    """Cancel a sale when a deal falls through. Managers included: they run the
+    desk and a collapsed deal has to be undoable there and then. It is not
+    destructive — cancel_sale() soft-cancels, keeps the sale and its payments
+    on record, frees the apartment, writes an audit entry and notifies
+    management."""
+    return user.role in (
+        CustomUser.ROLE_DIRECTOR,
+        CustomUser.ROLE_ADMIN,
+        CustomUser.ROLE_MANAGER,
+    )
 
 
 def can_change_apartment_price(user) -> bool:

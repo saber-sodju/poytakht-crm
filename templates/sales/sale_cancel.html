@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Отмена продажи{% endblock %}
+{% block back_url %}{% url 'sales:sale_detail' sale.pk %}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Отменить продажу?</h1>
+    <p class="page-sub text-muted">
+      {{ sale.client.full_name }} · {{ sale.apartment.unit_label }} {{ sale.apartment.number }},
+      {{ sale.apartment.block.name }}
+    </p>
+  </div>
+</div>
+
+<div class="form-card" style="max-width: 640px;">
+  <div class="detail-rows mb-4">
+    <div class="detail-row"><span>Сумма сделки</span><strong>${{ sale.total_price|floatformat:0|intcomma }}</strong></div>
+    <div class="detail-row"><span>Оплачено</span><strong class="text-success">${{ sale.paid_amount|floatformat:0|intcomma }}</strong></div>
+    <div class="detail-row"><span>Остаток долга</span><strong class="text-danger">${{ sale.debt|floatformat:0|intcomma }}</strong></div>
+  </div>
+
+  <div class="alert alert-warning">
+    Продажа не удаляется — она останется в системе со статусом «Отменена»,
+    вместе со всеми платежами и историей. Квартира снова станет свободной,
+    а директор и админ получат уведомление об отмене.
+  </div>
+
+  <form method="post">
+    {% csrf_token %}
+    <div class="mb-3">
+      <label class="form-label">Причина отмены</label>
+      <textarea name="reason" rows="3" class="form-control"
+                placeholder="Например: клиент отказался от покупки"></textarea>
+      <div class="form-text small text-muted">Причина попадёт в журнал действий и в уведомление руководству.</div>
+    </div>
+    <div class="d-flex gap-2 mt-4">
+      <button type="submit" class="btn btn-danger px-4">Отменить продажу</button>
+      <a href="{% url 'sales:sale_detail' sale.pk %}" class="btn btn-outline-secondary">Назад</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

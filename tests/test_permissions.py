@@ -96,8 +96,11 @@ class PermissionFunctionTests(TestCase):
         self.assertFalse(can_add_payment(self.client_user))
 
     def test_can_cancel_sale(self):
+        # The manager runs the desk and must be able to undo a collapsed deal
+        # on the spot — it's a soft cancel, audited and reported to management.
         self.assertTrue(can_cancel_sale(self.director))
-        self.assertFalse(can_cancel_sale(self.manager))
+        self.assertTrue(can_cancel_sale(self.manager))
+        # Not everyone, though: bookkeeping and clients stay out of it.
         self.assertFalse(can_cancel_sale(self.accountant))
         self.assertFalse(can_cancel_sale(self.client_user))
 

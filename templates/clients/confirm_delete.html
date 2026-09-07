@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+
+{% block title %}Удалить клиента{% endblock %}
+{% block back_url %}{% url 'clients:client_detail' client.pk %}{% endblock %}
+
+{% block content %}
+<div class="page-header"><h1 class="page-title">Удалить клиента {{ client.full_name }}?</h1></div>
+<div class="form-card text-center" style="max-width: 620px;">
+  {% if sales_count or bookings_count %}
+  <i class="bi bi-shield-exclamation text-warning fs-1 mb-3 d-block"></i>
+  <p class="text-muted">
+    За клиентом закреплены
+    {% if sales_count %}продажи: {{ sales_count }}{% endif %}{% if sales_count and bookings_count %}, {% endif %}{% if bookings_count %}брони: {{ bookings_count }}{% endif %}.
+    Удалить его нельзя — вместе с ним пропали бы сделки и платежи.
+    Если сделка сорвалась, отмените продажу: запись и история сохранятся.
+  </p>
+  <a href="{% url 'clients:client_detail' client.pk %}" class="btn btn-gold mt-3">Вернуться к клиенту</a>
+  {% else %}
+  <i class="bi bi-trash text-danger fs-1 mb-3 d-block"></i>
+  <p class="text-muted">
+    Сделок за клиентом не числится — запись можно удалить.
+    Действие необратимо и будет записано в журнал действий; директор и админ получат уведомление.
+  </p>
+  <form method="post" class="d-flex gap-2 justify-content-center mt-4">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-danger px-4">Удалить</button>
+    <a href="{% url 'clients:client_detail' client.pk %}" class="btn btn-outline-secondary">Отмена</a>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

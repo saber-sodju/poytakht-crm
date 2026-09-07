@@ -170,6 +170,8 @@ class Notification(models.Model):
         ('budget_exceeded', 'Бюджет превышен'),
         ('new_sale',        'Новая продажа'),
         ('new_expense',     'Новый расход'),
+        ('sale_cancelled',  'Продажа отменена'),
+        ('record_deleted',  'Удаление записи'),
         ('info',            'Информация'),
     ]
 

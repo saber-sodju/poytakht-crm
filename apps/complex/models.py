@@ -162,11 +162,11 @@ class Apartment(models.Model):
 
     @property
     def active_sale(self):
-        return self.sale if hasattr(self, 'sale') else None
+        return self.sales.filter(is_cancelled=False).first()
 
     @property
     def active_booking(self):
-        return self.booking if hasattr(self, 'booking') else None
+        return self.bookings.filter(is_active=True).first()
 
     @property
     def payment_badge(self):

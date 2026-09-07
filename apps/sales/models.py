@@ -1,11 +1,15 @@
 from django.db import models
+from django.db.models import Q
 from django.utils import timezone
 
 
 class Booking(models.Model):
-    apartment = models.OneToOneField(
+    # FK, not OneToOne: an apartment can be booked, released and booked again.
+    # Only ONE booking may be active at a time — enforced by the constraint
+    # below, so history stays without blocking the next client.
+    apartment = models.ForeignKey(
         'complex.Apartment', on_delete=models.CASCADE,
-        related_name='booking', verbose_name='Квартира'
+        related_name='bookings', verbose_name='Квартира'
     )
     client = models.ForeignKey(
         'clients.Client', on_delete=models.CASCADE,
@@ -26,6 +30,12 @@ class Booking(models.Model):
         verbose_name = 'Бронирование'
         verbose_name_plural = 'Бронирования'
         ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['apartment'], condition=Q(is_active=True),
+                name='one_active_booking_per_apartment',
+            ),
+        ]
 
     def __str__(self):
         return f'Бронь: {self.apartment} → {self.client}'
@@ -50,9 +60,12 @@ class Sale(models.Model):
         (PAYMENT_MORTGAGE,    'Ипотека'),
     ]
 
-    apartment = models.OneToOneField(
+    # FK, not OneToOne: a cancelled sale stays on record, and the apartment
+    # must be sellable again afterwards. At most one NON-cancelled sale per
+    # apartment — enforced by the constraint below.
+    apartment = models.ForeignKey(
         'complex.Apartment', on_delete=models.CASCADE,
-        related_name='sale', verbose_name='Квартира'
+        related_name='sales', verbose_name='Квартира'
     )
     client = models.ForeignKey(
         'clients.Client', on_delete=models.CASCADE,
@@ -87,6 +100,12 @@ class Sale(models.Model):
         verbose_name = 'Продажа'
         verbose_name_plural = 'Продажи'
         ordering = ['-sale_date']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['apartment'], condition=Q(is_cancelled=False),
+                name='one_active_sale_per_apartment',
+            ),
+        ]
 
     def __str__(self):
         return f'Продажа: {self.apartment} → {self.client}'

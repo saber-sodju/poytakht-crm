@@ -8,7 +8,11 @@ from django.utils import timezone
 
 from .models import Booking, Sale
 from .forms import BookingForm, SaleForm
-from .services import create_sale as svc_create_sale, cancel_booking as svc_cancel_booking
+from .services import (
+    create_sale as svc_create_sale,
+    cancel_booking as svc_cancel_booking,
+    cancel_sale as svc_cancel_sale,
+)
 from apps.complex.models import Apartment
 from apps.clients.models import Client as ClientModel
 from apps.accounts.decorators import staff_required, sales_required, director_or_admin_required
@@ -95,6 +99,42 @@ def sale_detail(request, pk):
     # Object-level check: clients can only see their own sale
     assert_can_view_sale(request.user, sale)
     return render(request, 'sales/detail.html', {'sale': sale})
+
+
+@login_required
+@sales_required
+def sale_cancel(request, pk):
+    """Cancel a sale when the deal falls through.
+
+    Soft-cancel only: the sale, its payments and the audit trail stay; the
+    apartment goes back to free and management is notified. Nothing about a
+    real transaction is ever erased.
+    """
+    sale = get_object_or_404(
+        Sale.objects.select_related('client', 'apartment__floor__block'), pk=pk
+    )
+    if sale.is_cancelled:
+        messages.warning(request, 'Эта продажа уже отменена.')
+        return redirect('sales:sale_detail', pk=pk)
+
+    if request.method == 'POST':
+        reason = (request.POST.get('reason') or '').strip()
+        try:
+            svc_cancel_sale(user=request.user, sale=sale, reason=reason)
+        except PermissionError as exc:
+            messages.error(request, str(exc))
+            return redirect('sales:sale_detail', pk=pk)
+        except ValidationError as exc:
+            messages.error(request, exc.message)
+            return redirect('sales:sale_detail', pk=pk)
+        messages.success(
+            request,
+            f'Продажа отменена, {sale.apartment.unit_label.lower()} '
+            f'{sale.apartment.number} снова свободна. Руководство уведомлено.',
+        )
+        return redirect('sales:sale_detail', pk=pk)
+
+    return render(request, 'sales/sale_cancel.html', {'sale': sale})
 
 
 @login_required

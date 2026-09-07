@@ -121,8 +121,11 @@ class SaleServiceTests(TestCase):
         # Record still exists — not deleted
         self.assertTrue(Sale.objects.filter(pk=sale.pk).exists())
 
-    def test_manager_cannot_cancel_sale(self):
+    def test_manager_may_cancel_but_accountant_may_not(self):
         director, apt, client = _base_data()
+        accountant = User.objects.create_user(
+            username='acc', password='testpass123', role=CustomUser.ROLE_ACCOUNTANT
+        )
         manager = User.objects.create_user(
             username='mgr', password='testpass123', role=CustomUser.ROLE_MANAGER
         )
@@ -131,7 +134,12 @@ class SaleServiceTests(TestCase):
             total_price=Decimal('100000'), payment_type='full',
         )
         with self.assertRaises(PermissionError):
-            cancel_sale(user=manager, sale=sale, reason='x')
+            cancel_sale(user=accountant, sale=sale, reason='x')
+
+        cancel_sale(user=manager, sale=sale, reason='Клиент передумал')
+        sale.refresh_from_db()
+        self.assertTrue(sale.is_cancelled)
+        self.assertEqual(sale.cancelled_by, manager)
 
     def test_cancel_booking_frees_apartment(self):
         director, apt, client = _base_data()
@@ -774,3 +782,98 @@ class PaymentScopingTests(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertTemplateUsed(r, 'payments/pick_sale.html')
         self.assertNotIn('schedule', r.context['form'].fields)   # no global schedule list
+
+
+class AuditAndNotificationTests(TestCase):
+    """Destructive and financial actions must leave a trail and reach the
+    people who run the business."""
+
+    def setUp(self):
+        from apps.accounts.models import Notification
+        self.Notification = Notification
+        self.director = User.objects.create_user(
+            username='boss_a', password='testpass123', role=CustomUser.ROLE_DIRECTOR)
+        self.admin = User.objects.create_user(
+            username='adm_a', password='testpass123', role=CustomUser.ROLE_ADMIN)
+        self.manager = User.objects.create_user(
+            username='mgr_a', password='testpass123', role=CustomUser.ROLE_MANAGER)
+
+    def _apartment(self, number='101'):
+        cplx = Complex.objects.create(name='C', address='A')
+        block = Block.objects.create(complex=cplx, name='B')
+        floor = Floor.objects.create(block=block, number=1)
+        return Apartment.objects.create(
+            floor=floor, number=number, apartment_type='2', area=Decimal('50'),
+            price_per_sqm=Decimal('1000'), total_price=Decimal('50000'))
+
+    def test_cancelling_a_sale_is_logged_and_notifies_management(self):
+        from apps.audit.models import AuditLog
+        apt = self._apartment()
+        buyer = Client.objects.create(full_name='Покупатель', phone='+992900000010')
+        sale = create_sale(user=self.manager, apartment_id=apt.pk, client=buyer,
+                           total_price=Decimal('50000'), payment_type='full')
+        cancel_sale(user=self.manager, sale=sale, reason='Клиент отказался')
+
+        entry = AuditLog.objects.filter(action=AuditLog.ACTION_CANCEL, model_name='Sale').first()
+        self.assertIsNotNone(entry)
+        self.assertEqual(entry.user, self.manager)
+        self.assertIn('Клиент отказался', entry.description)
+
+        # both the director and the admin hear about it; the actor doesn't
+        notified = self.Notification.objects.filter(notification_type='sale_cancelled')
+        self.assertEqual(
+            set(notified.values_list('user__username', flat=True)),
+            {'boss_a', 'adm_a'},
+        )
+
+        apt.refresh_from_db()
+        sale.refresh_from_db()
+        self.assertEqual(apt.status, Apartment.STATUS_FREE)   # freed
+        self.assertTrue(sale.is_cancelled)                    # but kept
+
+    def test_manager_may_cancel_a_sale(self):
+        from apps.accounts.permissions import can_cancel_sale
+        self.assertTrue(can_cancel_sale(self.manager))
+
+    def test_deleting_an_apartment_is_logged_and_notified(self):
+        from apps.audit.models import AuditLog
+        apt = self._apartment('202')
+        delete_apartment(apt, user=self.manager)
+        entry = AuditLog.objects.filter(action=AuditLog.ACTION_DELETE, model_name='Apartment').first()
+        self.assertIsNotNone(entry)
+        self.assertIn('202', entry.object_repr)
+        self.assertTrue(
+            self.Notification.objects.filter(notification_type='record_deleted').exists()
+        )
+
+    def test_client_without_deals_can_be_deleted_and_is_logged(self):
+        from apps.clients.services import delete_client
+        from apps.audit.models import AuditLog
+        buyer = Client.objects.create(full_name='Ошибочный Клиент', phone='+992900000011')
+        delete_client(user=self.manager, client=buyer)
+        self.assertFalse(Client.objects.filter(full_name='Ошибочный Клиент').exists())
+        entry = AuditLog.objects.filter(action=AuditLog.ACTION_DELETE, model_name='Client').first()
+        self.assertIsNotNone(entry)
+        self.assertIn('Ошибочный Клиент', entry.description)
+
+    def test_client_with_a_sale_cannot_be_deleted(self):
+        from apps.clients.services import delete_client
+        apt = self._apartment('303')
+        buyer = Client.objects.create(full_name='Настоящий Покупатель', phone='+992900000012')
+        create_sale(user=self.manager, apartment_id=apt.pk, client=buyer,
+                    total_price=Decimal('50000'), payment_type='full')
+        with self.assertRaises(ValidationError):
+            delete_client(user=self.manager, client=buyer)
+        self.assertTrue(Client.objects.filter(pk=buyer.pk).exists())
+
+    def test_cancelled_sale_frees_the_flat_so_it_can_be_sold_again(self):
+        apt = self._apartment('404')
+        first = Client.objects.create(full_name='Первый', phone='+992900000013')
+        second = Client.objects.create(full_name='Второй', phone='+992900000014')
+        sale = create_sale(user=self.manager, apartment_id=apt.pk, client=first,
+                           total_price=Decimal('50000'), payment_type='full')
+        cancel_sale(user=self.manager, sale=sale, reason='передумал')
+        again = create_sale(user=self.manager, apartment_id=apt.pk, client=second,
+                            total_price=Decimal('50000'), payment_type='full')
+        self.assertEqual(again.client, second)
+        self.assertEqual(Sale.objects.filter(apartment=apt).count(), 2)  # both kept

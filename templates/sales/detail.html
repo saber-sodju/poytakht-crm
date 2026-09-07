@@ -13,10 +13,22 @@
       </ol>
     </nav>
     <h1 class="page-title">{{ sale.client.full_name }}</h1>
-    <p class="page-sub text-muted">Квартира {{ sale.apartment.number }}, {{ sale.apartment.block.name }}</p>
+    <p class="page-sub text-muted">{{ sale.apartment.unit_label }} {{ sale.apartment.number }}, {{ sale.apartment.block.name }}</p>
   </div>
-  {% if user.can_add_payment %}<a href="{% url 'payments:add' %}?sale={{ sale.pk }}" class="btn btn-gold">+ Добавить платёж</a>{% endif %}
+  <div class="d-flex gap-2">
+    {% if user.can_add_payment and not sale.is_cancelled %}<a href="{% url 'payments:add' %}?sale={{ sale.pk }}" class="btn btn-gold">+ Добавить платёж</a>{% endif %}
+    {% if user.can_manage_sales and not sale.is_cancelled %}<a href="{% url 'sales:sale_cancel' sale.pk %}" class="btn btn-outline-danger">Отменить продажу</a>{% endif %}
+  </div>
 </div>
+
+{% if sale.is_cancelled %}
+<div class="alert alert-danger">
+  <strong>Продажа отменена</strong>
+  {% if sale.cancelled_at %} — {{ sale.cancelled_at|date:"d.m.Y H:i" }}{% endif %}
+  {% if sale.cancelled_by %}, {{ sale.cancelled_by.display_name }}{% endif %}.
+  {% if sale.cancellation_reason %}<br>Причина: {{ sale.cancellation_reason }}{% endif %}
+</div>
+{% endif %}
 
 <div class="detail-grid">
   <div>

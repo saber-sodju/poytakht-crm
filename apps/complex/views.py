@@ -16,6 +16,7 @@ from .services import (
     delete_apartment, delete_floor, delete_block, delete_complex,
 )
 from apps.accounts.decorators import staff_required, complex_required
+from apps.audit.models import log_action, AuditLog
 
 
 @login_required
@@ -31,6 +32,9 @@ def complex_create(request):
     form = ComplexForm(request.POST or None)
     if request.method == 'POST' and form.is_valid():
         c = form.save()
+        log_action(user=request.user, action=AuditLog.ACTION_CREATE,
+                   model_name='Complex', object_id=c.pk, object_repr=c.name,
+                   description=f'Создан комплекс «{c.name}» ({c.address})', request=request)
         messages.success(request, f'Комплекс «{c.name}» создан.')
         return redirect('complex:list')
     return render(request, 'complex/form.html', {'form': form, 'title': 'Новый комплекс'})
@@ -50,6 +54,10 @@ def block_create(request):
     form = BlockForm(request.POST or None)
     if request.method == 'POST' and form.is_valid():
         block = form.save()
+        log_action(user=request.user, action=AuditLog.ACTION_CREATE,
+                   model_name='Block', object_id=block.pk, object_repr=block.name,
+                   description=f'Создан блок «{block.name}» в комплексе «{block.complex.name}»',
+                   request=request)
         floors_count = form.cleaned_data.get('floors_count')
         if floors_count:
             created = create_floors(block=block, count=floors_count)
@@ -91,6 +99,10 @@ def floor_create(request, block_pk):
     form = FloorForm(request.POST or None, initial=initial)
     if request.method == 'POST' and form.is_valid():
         floor = form.save()
+        log_action(user=request.user, action=AuditLog.ACTION_CREATE,
+                   model_name='Floor', object_id=floor.pk, object_repr=f'Этаж {floor.number}',
+                   description=f'Добавлен этаж {floor.number} в блок «{floor.block.name}»',
+                   request=request)
         messages.success(request, f'Этаж {floor.number} добавлен.')
         return redirect('complex:block_detail', pk=block_pk)
     return render(request, 'complex/form.html', {'form': form, 'title': f'Новый этаж — {block.name}'})
@@ -122,6 +134,13 @@ def floor_copy_layout(request, pk):
             price_step_per_floor=cd['price_step_per_floor'],
         )
         if created:
+            log_action(user=request.user, action=AuditLog.ACTION_CREATE,
+                       model_name='Apartment', object_id=source_floor.pk,
+                       object_repr=f'Планировка этажа {source_floor.number}',
+                       description=(f'Планировка этажа {source_floor.number} блока '
+                                    f'«{source_floor.block.name}» скопирована на этажи '
+                                    f'{cd["floor_from"]}–{cd["floor_to"]}, создано квартир: {len(created)}'),
+                       request=request)
             messages.success(request, f'Планировка скопирована, создано квартир: {len(created)}.')
         else:
             messages.warning(
@@ -141,8 +160,8 @@ def floor_copy_layout(request, pk):
 @staff_required
 def apartment_detail(request, pk):
     apt = get_object_or_404(Apartment, pk=pk)
-    sale = getattr(apt, 'sale', None)
-    booking = getattr(apt, 'booking', None)
+    sale = apt.active_sale
+    booking = apt.active_booking
     return render(request, 'complex/apartment_detail.html', {
         'apt': apt, 'sale': sale, 'booking': booking
     })
@@ -156,6 +175,14 @@ def apartment_create(request, floor_pk=None):
     form = ApartmentForm(request.POST or None, request.FILES or None, initial=initial)
     if request.method == 'POST' and form.is_valid():
         apt = form.save()
+        log_action(user=request.user, action=AuditLog.ACTION_CREATE,
+                   model_name='Apartment', object_id=apt.pk,
+                   object_repr=f'{apt.unit_label} {apt.number}',
+                   description=(f'Добавлена {apt.unit_label.lower()} {apt.number} '
+                                f'({apt.block.name}, этаж {apt.floor.number}), '
+                                f'{apt.get_apartment_type_display()}, {apt.area} м², '
+                                f'${apt.total_price}'),
+                   request=request)
         messages.success(request, f'{apt.unit_label} {apt.number} добавлена.')
         return redirect('complex:apartment_detail', pk=apt.pk)
     # `floor` lets the template point "назад" at the block we came from
@@ -170,7 +197,16 @@ def apartment_edit(request, pk):
     apt = get_object_or_404(Apartment, pk=pk)
     form = ApartmentForm(request.POST or None, request.FILES or None, instance=apt)
     if request.method == 'POST' and form.is_valid():
-        form.save()
+        before = f'цена=${apt.total_price}, статус={apt.get_status_display()}, площадь={apt.area}'
+        updated = form.save()
+        log_action(user=request.user, action=AuditLog.ACTION_UPDATE,
+                   model_name='Apartment', object_id=updated.pk,
+                   object_repr=f'{updated.unit_label} {updated.number}',
+                   description=f'Изменена {updated.unit_label.lower()} {updated.number} ({updated.block.name})',
+                   old_value=before,
+                   new_value=(f'цена=${updated.total_price}, статус={updated.get_status_display()}, '
+                              f'площадь={updated.area}'),
+                   request=request)
         messages.success(request, 'Квартира обновлена.')
         return redirect('complex:apartment_detail', pk=pk)
     return render(request, 'complex/apartment_form.html', {'form': form, 'title': f'Квартира {apt.number}', 'object': apt})
@@ -180,8 +216,8 @@ def apartment_edit(request, pk):
 @staff_required
 def apartment_api(request, pk):
     apt = get_object_or_404(Apartment, pk=pk)
-    sale = getattr(apt, 'sale', None)
-    booking = getattr(apt, 'booking', None)
+    sale = apt.active_sale
+    booking = apt.active_booking
     data = {
         'id': apt.pk,
         'number': apt.number,
@@ -208,7 +244,7 @@ def apartment_delete(request, pk):
     block_pk = apt.block.pk
     if request.method == 'POST':
         try:
-            delete_apartment(apt)
+            delete_apartment(apt, user=request.user, request=request)
         except ValidationError as exc:
             messages.error(request, exc.message)
             return redirect('complex:apartment_detail', pk=pk)
@@ -228,7 +264,7 @@ def floor_delete(request, pk):
     block_pk = floor.block.pk
     if request.method == 'POST':
         try:
-            delete_floor(floor)
+            delete_floor(floor, user=request.user, request=request)
         except ValidationError as exc:
             messages.error(request, exc.message)
             return redirect('complex:block_detail', pk=block_pk)
@@ -248,7 +284,7 @@ def block_delete(request, pk):
     complex_pk = block.complex.pk
     if request.method == 'POST':
         try:
-            delete_block(block)
+            delete_block(block, user=request.user, request=request)
         except ValidationError as exc:
             messages.error(request, exc.message)
             return redirect('complex:block_detail', pk=pk)
@@ -267,7 +303,7 @@ def complex_delete(request, pk):
     complex_obj = get_object_or_404(Complex, pk=pk)
     if request.method == 'POST':
         try:
-            delete_complex(complex_obj)
+            delete_complex(complex_obj, user=request.user, request=request)
         except ValidationError as exc:
             messages.error(request, exc.message)
             return redirect('complex:complex_detail', pk=pk)

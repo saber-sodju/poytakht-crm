@@ -15,6 +15,7 @@ from django.utils import timezone
 
 from apps.complex.models import Apartment
 from apps.audit.models import log_action, AuditLog
+from apps.accounts.notifications import notify_management
 from .models import Sale, Booking
 
 logger = logging.getLogger('apps.sales')
@@ -183,13 +184,10 @@ def create_sale(*, user, apartment_id, client, total_price, payment_type,
     apartment.save(update_fields=['status'])
 
     # Close any existing booking for this apartment
-    try:
-        booking = apartment.booking
-        if booking.is_active:
-            booking.is_active = False
-            booking.save(update_fields=['is_active'])
-    except Booking.DoesNotExist:
-        pass
+    active_booking = apartment.bookings.filter(is_active=True).first()
+    if active_booking:
+        active_booking.is_active = False
+        active_booking.save(update_fields=['is_active'])
 
     # First payment / advance — recorded as a real Payment so income = actual money
     if initial_payment and initial_payment > 0:
@@ -233,7 +231,7 @@ def create_sale(*, user, apartment_id, client, total_price, payment_type,
         ),
     )
 
-    _notify_directors(
+    notify_management(
         notification_type='new_sale',
         title=f'Новая продажа: кв. {apartment.number} — ${total_price}',
         message=f'Клиент: {client.full_name}. Оформил: {user.display_name}.',
@@ -245,19 +243,7 @@ def create_sale(*, user, apartment_id, client, total_price, payment_type,
     return sale
 
 
-def _notify_directors(*, notification_type, title, message='', link='', exclude_user=None):
-    """Create a Notification for every director (except the actor)."""
-    from apps.accounts.models import CustomUser, Notification
-    directors = CustomUser.objects.filter(role=CustomUser.ROLE_DIRECTOR, is_active=True)
-    if exclude_user is not None:
-        directors = directors.exclude(pk=exclude_user.pk)
-    Notification.objects.bulk_create([
-        Notification(
-            user=d, notification_type=notification_type,
-            title=title[:200], message=message, link=link,
-        )
-        for d in directors
-    ])
+
 
 
 @transaction.atomic
@@ -296,6 +282,17 @@ def cancel_sale(*, user, sale, reason='') -> None:
         description=f'Продажа отменена. Причина: {reason or "не указана"}',
         old_value=f'is_cancelled=False, apartment.status=sold',
         new_value=f'is_cancelled=True, apartment.status=free, reason={reason}',
+    )
+
+    notify_management(
+        notification_type='sale_cancelled',
+        title=f'Отменена продажа: кв. {apartment.number} — ${sale.total_price:,.0f}'.replace(',', ' '),
+        message=(
+            f'Клиент: {sale.client.full_name}. Отменил: {user.display_name}. '
+            f'Причина: {reason or "не указана"}. Квартира снова свободна.'
+        ),
+        link=f'/sales/{sale.pk}/',
+        exclude_user=user,
     )
 
     logger.info('Sale %d cancelled by %s. Reason: %s', sale.pk, user, reason)

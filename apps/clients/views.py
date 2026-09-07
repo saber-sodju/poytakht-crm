@@ -6,9 +6,13 @@ from django.utils import timezone
 import random
 import string
 
+from django.core.exceptions import ValidationError
+
 from .models import Client, Lead
 from .forms import ClientForm, LeadForm
-from apps.accounts.decorators import staff_required
+from .services import delete_client as svc_delete_client
+from apps.accounts.decorators import staff_required, sales_required
+from apps.audit.models import log_action, AuditLog
 
 
 @login_required
@@ -38,6 +42,10 @@ def client_create(request):
         client = form.save(commit=False)
         client.added_by = request.user
         client.save()
+        log_action(user=request.user, action=AuditLog.ACTION_CREATE,
+                   model_name='Client', object_id=client.pk, object_repr=client.full_name,
+                   description=f'Добавлен клиент: {client.full_name} ({client.phone})',
+                   request=request)
         messages.success(request, f'Клиент {client.full_name} добавлен.')
         if safe_next:
             sep = '&' if '?' in safe_next else '?'
@@ -45,6 +53,28 @@ def client_create(request):
         return redirect('clients:client_detail', pk=client.pk)
     return render(request, 'clients/form.html', {
         'form': form, 'title': 'Новый клиент', 'next_url': safe_next,
+    })
+
+
+@login_required
+@sales_required
+def client_delete(request, pk):
+    """Remove a client added by mistake. Refused for anyone with sales or
+    bookings behind them — see apps/clients/services.delete_client."""
+    client = get_object_or_404(Client, pk=pk)
+    if request.method == 'POST':
+        try:
+            svc_delete_client(user=request.user, client=client, request=request)
+        except ValidationError as exc:
+            messages.error(request, exc.message)
+            return redirect('clients:client_detail', pk=pk)
+        messages.success(request, f'Клиент {client.full_name} удалён.')
+        return redirect('clients:list')
+
+    return render(request, 'clients/confirm_delete.html', {
+        'client': client,
+        'sales_count': client.sales.count(),
+        'bookings_count': client.bookings.count(),
     })
 
 
@@ -65,7 +95,13 @@ def client_edit(request, pk):
     client = get_object_or_404(Client, pk=pk)
     form = ClientForm(request.POST or None, instance=client)
     if request.method == 'POST' and form.is_valid():
-        form.save()
+        before = f'{client.full_name}, тел. {client.phone}'
+        updated = form.save()
+        log_action(user=request.user, action=AuditLog.ACTION_UPDATE,
+                   model_name='Client', object_id=updated.pk, object_repr=updated.full_name,
+                   description=f'Изменены данные клиента: {updated.full_name}',
+                   old_value=before, new_value=f'{updated.full_name}, тел. {updated.phone}',
+                   request=request)
         messages.success(request, 'Данные клиента обновлены.')
         return redirect('clients:client_detail', pk=pk)
     return render(request, 'clients/form.html', {'form': form, 'title': f'Редактировать: {client.full_name}', 'object': client})

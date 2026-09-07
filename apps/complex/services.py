@@ -9,7 +9,28 @@ from decimal import Decimal
 from django.db import transaction
 from django.core.exceptions import ValidationError
 
+from apps.audit.models import log_action, AuditLog
+from apps.accounts.notifications import notify_management
+
 from .models import Floor, Apartment
+
+
+def _record_deletion(*, user, model_name, obj_id, label, detail, request=None):
+    """Every structural deletion goes to the audit log and pings management —
+    the owner should never learn from a gap in the data that a block or a
+    dozen apartments disappeared."""
+    log_action(
+        user=user, action=AuditLog.ACTION_DELETE,
+        model_name=model_name, object_id=obj_id, object_repr=label,
+        description=detail, request=request,
+    )
+    notify_management(
+        notification_type='record_deleted',
+        title=f'Удалено: {label}',
+        message=f'{detail} Удалил: {user.display_name}.' if user else detail,
+        link='/complex/',
+        exclude_user=user,
+    )
 
 
 @transaction.atomic
@@ -122,39 +143,65 @@ def _blocking_apartment_numbers(apartments_qs):
 
 
 @transaction.atomic
-def delete_apartment(apartment):
+def delete_apartment(apartment, *, user=None, request=None):
     if _apartment_has_history(apartment):
         raise ValidationError(
             f'Квартиру {apartment.number} нельзя удалить — по ней есть история продаж или броней.'
         )
+    label = f'{apartment.unit_label} {apartment.number}'
+    detail = f'{label} ({apartment.block.name}, этаж {apartment.floor.number}).'
+    apt_id = apartment.pk
     apartment.delete()
+    if user:
+        _record_deletion(user=user, model_name='Apartment', obj_id=apt_id,
+                         label=label, detail=detail, request=request)
 
 
 @transaction.atomic
-def delete_floor(floor):
+def delete_floor(floor, *, user=None, request=None):
     blocked = _blocking_apartment_numbers(floor.apartments.all())
     if blocked:
         raise ValidationError(
             f'Этаж {floor.number} нельзя удалить — есть квартиры с историей продаж/броней: {", ".join(blocked)}.'
         )
+    label = f'Этаж {floor.number} ({floor.block.name})'
+    detail = f'{label}, вместе с квартирами: {floor.apartments.count()}.'
+    floor_id = floor.pk
     floor.delete()
+    if user:
+        _record_deletion(user=user, model_name='Floor', obj_id=floor_id,
+                         label=label, detail=detail, request=request)
 
 
 @transaction.atomic
-def delete_block(block):
+def delete_block(block, *, user=None, request=None):
     blocked = _blocking_apartment_numbers(Apartment.objects.filter(floor__block=block))
     if blocked:
         raise ValidationError(
             f'Блок «{block.name}» нельзя удалить — есть квартиры с историей продаж/броней: {", ".join(blocked)}.'
         )
+    label = f'Блок «{block.name}»'
+    detail = (f'{label} комплекса «{block.complex.name}», '
+              f'этажей: {block.floors.count()}, квартир: {block.total_apartments}.')
+    block_id = block.pk
     block.delete()
+    if user:
+        _record_deletion(user=user, model_name='Block', obj_id=block_id,
+                         label=label, detail=detail, request=request)
 
 
 @transaction.atomic
-def delete_complex(complex_obj):
+def delete_complex(complex_obj, *, user=None, request=None):
     blocked = _blocking_apartment_numbers(Apartment.objects.filter(floor__block__complex=complex_obj))
     if blocked:
         raise ValidationError(
             f'Комплекс «{complex_obj.name}» нельзя удалить — есть квартиры с историей продаж/броней: {", ".join(blocked)}.'
         )
+    label = f'Комплекс «{complex_obj.name}»'
+    detail = (f'{label}, блоков: {complex_obj.blocks.count()}, '
+              f'квартир: {complex_obj.total_apartments}.')
+    cx_id = complex_obj.pk
     complex_obj.delete()
+    if user:
+        _record_deletion(user=user, model_name='Complex', obj_id=cx_id,
+                         label=label, detail=detail, request=request)
