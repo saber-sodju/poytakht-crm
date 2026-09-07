@@ -323,3 +323,41 @@ class ManagerSalesDeskTests(TestCase):
     def test_expenses_section_stays_closed_to_manager(self):
         r = self.c.get('/expenses/', follow=True)
         self.assertContains(r, 'нет доступа')
+
+
+class LoginPageFreshnessTests(TestCase):
+    """The login page must never be cached: Django rotates the CSRF token on
+    every login, so a cached copy carries a token that is already invalid —
+    which showed up as "403 on the first attempt, fine after a reload"."""
+
+    def test_login_page_is_not_cacheable(self):
+        c = Client()
+        r = c.get('/auth/login/')
+        self.assertEqual(r.status_code, 200)
+        cache_control = r.headers.get('Cache-Control', '')
+        self.assertIn('no-store', cache_control)
+        self.assertIn('no-cache', cache_control)
+
+    def test_logout_is_not_cacheable(self):
+        _make_user(CustomUser.ROLE_MANAGER, 'cache_mgr')
+        c = Client()
+        c.login(username='cache_mgr', password='testpass123')
+        r = c.get('/auth/logout/')
+        self.assertIn('no-store', r.headers.get('Cache-Control', ''))
+
+    def test_stale_token_on_login_sends_you_back_to_a_fresh_form(self):
+        # A POST with a bad CSRF token must not dead-end on a raw 403 page.
+        c = Client(enforce_csrf_checks=True)
+        r = c.post('/auth/login/', {
+            'username': 'x', 'password': 'y', 'csrfmiddlewaretoken': 'stale-token',
+        }, follow=True)
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Страница входа устарела')
+
+    def test_stale_token_elsewhere_shows_a_readable_page(self):
+        _make_user(CustomUser.ROLE_MANAGER, 'csrf_mgr')
+        c = Client(enforce_csrf_checks=True)
+        c.force_login(CustomUser.objects.get(username='csrf_mgr'))
+        r = c.post('/clients/create/', {'full_name': 'X', 'phone': '+992900000001'})
+        self.assertEqual(r.status_code, 403)
+        self.assertContains(r, 'Страница устарела', status_code=403)

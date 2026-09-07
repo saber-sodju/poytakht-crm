@@ -31,7 +31,11 @@
         <div class="login-sub">CRM / ERP Система</div>
       </div>
 
-      {% if form.errors %}
+      {% if messages %}
+      {% for message in messages %}
+      <div class="alert alert-{{ message.tags|default:'info' }}">{{ message }}</div>
+      {% endfor %}
+      {% elif form.errors %}
       <div class="alert alert-danger">Неверный логин или пароль.</div>
       {% endif %}
 

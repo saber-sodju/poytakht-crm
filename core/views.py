@@ -1,3 +1,4 @@
+import logging
 import os
 from pathlib import Path
 from django.conf import settings
@@ -6,6 +7,27 @@ from django.http import FileResponse, Http404
 from django.shortcuts import render, redirect
 from django.views.decorators.cache import never_cache
 from django.templatetags.static import static as static_url
+from django.contrib import messages
+
+logger = logging.getLogger('apps.accounts')
+
+
+def csrf_failure(request, reason=''):
+    """Shown when a form is submitted with a stale or missing CSRF token.
+
+    The usual cause is a page that sat open (or came back from the browser
+    cache) while the token rotated — Django rotates it on every login. That's
+    a "reload and try again" situation, not something the user can act on, so
+    on the login page we send them straight back to a fresh form with an
+    explanation instead of a raw 403.
+    """
+    logger.warning('CSRF failure on %s: %s', request.path, reason)
+
+    if request.path.rstrip('/') == settings.LOGIN_URL.rstrip('/'):
+        messages.error(request, 'Страница входа устарела — попробуйте войти ещё раз.')
+        return redirect(settings.LOGIN_URL)
+
+    return render(request, 'csrf_failure.html', {'reason': reason}, status=403)
 
 
 def _can_access_media(user, path) -> bool:

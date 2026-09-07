@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+
+{% block title %}Форма устарела{% endblock %}
+
+{% block content %}
+<div class="form-card text-center" style="max-width: 560px; margin: 40px auto;">
+  <i class="bi bi-arrow-clockwise text-gold fs-1 mb-3 d-block"></i>
+  <h4 class="mb-3">Страница устарела</h4>
+  <p class="text-muted">
+    Форма была открыта слишком долго, и её защитный код перестал действовать.
+    Данные не отправлены — откройте страницу заново и повторите действие.
+  </p>
+  <div class="d-flex gap-2 justify-content-center mt-4">
+    <a href="{% url 'dashboard:index' %}" class="btn btn-gold px-4">На главную</a>
+    <a href="javascript:location.reload()" class="btn btn-outline-secondary">Обновить страницу</a>
+  </div>
+</div>
+{% endblock %}

@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.core.cache import cache
 from django.conf import settings
 from django.http import JsonResponse
+from django.views.decorators.cache import never_cache
 
 from .models import CustomUser, Notification
 from .forms import LoginForm, UserCreateForm, UserEditForm, StyledPasswordChangeForm, StyledSetPasswordForm
@@ -26,6 +27,7 @@ def _get_client_ip(request) -> str:
     return ip[:45]   # max length for GenericIPAddressField
 
 
+@never_cache
 def login_view(request):
     if request.user.is_authenticated:
         return redirect('dashboard:index')
@@ -84,6 +86,7 @@ def login_view(request):
     return render(request, 'auth/login.html', {'form': form, 'show_demo': settings.DEBUG})
 
 
+@never_cache
 def logout_view(request):
     logout(request)
     return redirect('accounts:login')

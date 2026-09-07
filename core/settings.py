@@ -235,6 +235,7 @@ SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 SESSION_SAVE_EVERY_REQUEST = True
 SESSION_COOKIE_HTTPONLY = True          # JS cannot read session cookie
 SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_FAILURE_VIEW = 'core.views.csrf_failure'
 CSRF_COOKIE_HTTPONLY = False            # JS needs CSRF for AJAX — keep False
 CSRF_COOKIE_SAMESITE = 'Lax'
 
