@@ -158,7 +158,10 @@ def apartment_create(request, floor_pk=None):
         apt = form.save()
         messages.success(request, f'{apt.unit_label} {apt.number} добавлена.')
         return redirect('complex:apartment_detail', pk=apt.pk)
-    return render(request, 'complex/apartment_form.html', {'form': form, 'title': 'Новая квартира'})
+    # `floor` lets the template point "назад" at the block we came from
+    return render(request, 'complex/apartment_form.html', {
+        'form': form, 'title': 'Новая квартира', 'floor': floor,
+    })
 
 
 @login_required

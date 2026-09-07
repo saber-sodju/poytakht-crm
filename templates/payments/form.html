@@ -17,7 +17,7 @@
     {% endfor %}
     <div class="d-flex gap-2 mt-4">
       <button type="submit" class="btn btn-gold px-4">Добавить платёж</button>
-      <a href="javascript:history.back()" class="btn btn-outline-secondary">Отмена</a>
+      <a href="{% url 'payments:list' %}" class="btn btn-outline-secondary">Отмена</a>
     </div>
   </form>
 </div>

@@ -2,6 +2,7 @@
 {% load humanize %}
 
 {% block title %}{{ apt.unit_label }} {{ apt.number }}{% endblock %}
+{% block back_url %}{% url 'complex:block_detail' apt.block.pk %}{% endblock %}
 
 {% block content %}
 <div class="page-header">

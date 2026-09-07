@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 
 {% block title %}{{ title }}{% endblock %}
+{% block back_url %}{% url 'complex:list' %}{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -29,7 +30,7 @@
     {% endfor %}
     <div class="d-flex gap-2 mt-4">
       <button type="submit" class="btn btn-gold px-4">Сохранить</button>
-      <a href="javascript:history.back()" class="btn btn-outline-secondary">Отмена</a>
+      <a href="{% url 'complex:list' %}" class="btn btn-outline-secondary">Отмена</a>
     </div>
   </form>
 </div>

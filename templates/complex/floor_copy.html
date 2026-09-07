@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 
 {% block title %}Копировать планировку этажа {{ floor.number }}{% endblock %}
+{% block back_url %}{% url 'complex:block_detail' floor.block.pk %}{% endblock %}
 
 {% block content %}
 <div class="page-header">

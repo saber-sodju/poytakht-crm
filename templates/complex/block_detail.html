@@ -2,6 +2,7 @@
 {% load humanize %}
 
 {% block title %}{{ block_obj.name }}{% endblock %}
+{% block back_url %}{% url 'complex:complex_detail' block_obj.complex.pk %}{% endblock %}
 
 {% block content %}
 <div class="page-header">

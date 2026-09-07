@@ -10,6 +10,7 @@ from .models import Booking, Sale
 from .forms import BookingForm, SaleForm
 from .services import create_sale as svc_create_sale, cancel_booking as svc_cancel_booking
 from apps.complex.models import Apartment
+from apps.clients.models import Client as ClientModel
 from apps.accounts.decorators import staff_required, sales_required, director_or_admin_required
 from apps.accounts.permissions import assert_can_view_sale
 
@@ -49,6 +50,13 @@ def sale_create(request):
         if apt:
             initial['apartment'] = apt
             initial['total_price'] = apt.total_price
+
+    # coming back from "add client" mid-sale
+    client_pk = request.GET.get('client')
+    if client_pk:
+        client = ClientModel.objects.filter(pk=client_pk).first()
+        if client:
+            initial['client'] = client
 
     form = SaleForm(request.POST or None, initial=initial)
     if request.method == 'POST' and form.is_valid():
@@ -108,6 +116,12 @@ def booking_create(request):
         apt = Apartment.objects.filter(pk=apt_pk, status=Apartment.STATUS_FREE).first()
         if apt:
             initial['apartment'] = apt
+
+    client_pk = request.GET.get('client')
+    if client_pk:
+        client = ClientModel.objects.filter(pk=client_pk).first()
+        if client:
+            initial['client'] = client
 
     form = BookingForm(request.POST or None, initial=initial)
     if request.method == 'POST' and form.is_valid():

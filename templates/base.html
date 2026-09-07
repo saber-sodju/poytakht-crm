@@ -182,7 +182,9 @@
   <button class="topbar-toggle" id="sidebarToggle" type="button">
     <i class="bi bi-list"></i>
   </button>
-  <button class="topbar-btn" id="topbarBack" type="button" title="Назад" data-fallback="{% url 'dashboard:index' %}">
+  <button class="topbar-btn" id="topbarBack" type="button" title="Назад"
+          data-back="{% block back_url %}{% endblock %}"
+          data-fallback="{% url 'dashboard:index' %}">
     <i class="bi bi-arrow-left"></i>
   </button>
 

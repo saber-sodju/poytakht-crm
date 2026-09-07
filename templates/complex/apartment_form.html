@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 
 {% block title %}{{ title }}{% endblock %}
+{% block back_url %}{% if object %}{% url 'complex:apartment_detail' object.pk %}{% elif floor %}{% url 'complex:block_detail' floor.block.pk %}{% else %}{% url 'complex:list' %}{% endif %}{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -40,7 +41,7 @@
     </div>
     <div class="d-flex gap-2 mt-4">
       <button type="submit" class="btn btn-gold px-4">Сохранить</button>
-      <a href="javascript:history.back()" class="btn btn-outline-secondary">Отмена</a>
+      <a href="{% if object %}{% url 'complex:apartment_detail' object.pk %}{% elif floor %}{% url 'complex:block_detail' floor.block.pk %}{% else %}{% url 'complex:list' %}{% endif %}" class="btn btn-outline-secondary">Отмена</a>
     </div>
   </form>
 </div>

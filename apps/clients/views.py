@@ -27,14 +27,25 @@ def client_list(request):
 @login_required
 @staff_required
 def client_create(request):
+    # ?next= lets another flow (a sale/booking that needs a client who isn't
+    # in the system yet) send the user here and get them back afterwards with
+    # the new client already selected, instead of losing the half-filled form.
+    next_url = request.GET.get('next', '')
+    safe_next = next_url if next_url.startswith('/') and not next_url.startswith('//') else ''
+
     form = ClientForm(request.POST or None)
     if request.method == 'POST' and form.is_valid():
         client = form.save(commit=False)
         client.added_by = request.user
         client.save()
         messages.success(request, f'Клиент {client.full_name} добавлен.')
+        if safe_next:
+            sep = '&' if '?' in safe_next else '?'
+            return redirect(f'{safe_next}{sep}client={client.pk}')
         return redirect('clients:client_detail', pk=client.pk)
-    return render(request, 'clients/form.html', {'form': form, 'title': 'Новый клиент'})
+    return render(request, 'clients/form.html', {
+        'form': form, 'title': 'Новый клиент', 'next_url': safe_next,
+    })
 
 
 @login_required

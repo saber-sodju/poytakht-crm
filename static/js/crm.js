@@ -41,8 +41,17 @@ document.addEventListener('DOMContentLoaded', function () {
   const backBtn = document.getElementById('topbarBack');
   if (backBtn) {
     backBtn.addEventListener('click', function () {
-      // Only go back if there's actual in-app history to return to —
-      // otherwise (e.g. opened via bookmark/new tab) fall back to the dashboard.
+      // Prefer the page's own declared parent ({% block back_url %}). It's
+      // deterministic: after submitting a form, history.back() would land on
+      // the form we just submitted — which in a standalone PWA can show a
+      // blank "confirm resubmission" page instead of going anywhere useful.
+      const declared = backBtn.dataset.back;
+      if (declared) {
+        window.location.href = declared;
+        return;
+      }
+      // No declared parent: fall back to real history, and to the dashboard
+      // when there's nothing in-app to go back to (bookmark/new tab).
       const cameFromSameSite = document.referrer && document.referrer.indexOf(window.location.origin) === 0;
       if (window.history.length > 1 && cameFromSameSite) {
         window.history.back();
